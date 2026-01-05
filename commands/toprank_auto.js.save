@@ -1,0 +1,378 @@
+
+    const c = sock.contacts?.[id];
+    if (c) {
+      const nm = c.pushName || c.name || c.notify;
+      if (nm) return nm;
+    }
+
+    if (groupJid.endsWith('@g.us')) {
+      try {
+        const meta = await sock.groupMetadata(groupJid);
+        const peserta = meta.participants || [];
+        const p = peserta.find(x => jidNormalizedUser(x.id) === id);
+        if (p) {
+          const nm = p.name || p.notify || p.verifiedName;
+          if (nm) return nm;
+        }
+      } catch {}
+    }
+
+    if (bareId) return bareId;
+    return 'Member DevOps';
+  } catch {
+    return 'Member DevOps';
+  }
+}
+
+/**
+ * Render sertifikat jadi buffer PNG
+ * Layout disesuaikan dengan template sertifikat.png:
+ * - Nama di tengah di atas garis (font 64, pseudo-bold)
+ * - Deskripsi hijau tepat di bawah garis (nggak terlalu turun)
+ */
+async function createCertificateBuffer(memberName, rank, count) {
+  try {
+    if (!fs.existsSync(CERT_TEMPLATE)) {
+      console.warn('[toprank_auto] Template sertifikat tidak ditemukan:', CERT_TEMPLATE);
+      return null;
+    }
+
+    const img = await Jimp.read(CERT_TEMPLATE);
+    const W   = img.bitmap.width;
+
+    const fontName = await Jimp.loadFont(Jimp.FONT_SANS_64_BLACK);
+    const fontDesc = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
+
+    const safeName = String(memberName || '').replace(/\s+/g, ' ').trim() || 'Member DevOps';
+
+    // === NAMA (di tengah, agak tebal) ===
+    // area nama kira-kira di tengah antara "Diberikan kepada :" dan garis panjang
+    const nameAreaHeight = 80;
+    const nameLayer = new Jimp(W, nameAreaHeight, 0x00000000);
+    nameLayer.print(
+      fontName,
+      0,
+      0,
+      {
+        text: safeName.toUpperCase(),
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
+      },
+      W,
+      nameAreaHeight
+    );
+    applySolidColor(nameLayer, TEXT_COLOR_HEX);
+
+    const NAME_Y = 360; // posisi nama; sudah diset biar mirip contoh dummy
+    // pseudo-bold: komposit beberapa kali sedikit bergeser
+    img.composite(nameLayer, 0, NAME_Y);
+    img.composite(nameLayer, 1, NAME_Y);
+    img.composite(nameLayer, 0, NAME_Y + 1);
+
+    // === DESKRIPSI (hijau, rapih, nggak terlalu turun) ===
+    const descText =
+      `Sebagai bentuk apresiasi atas partisipasi aktif ${safeName} di grub WhatsApp DevOps Engineer.\n` +
+      'Terimakasih sudah membantu menjaga diskusi tetap hidup, bermanfaat, dan kondusif.';
+
+    const descWidth  = W - 160;   // margin kiri/kanan ~80px
+    const descHeight = 120;
+    const descLayer  = new Jimp(descWidth, descHeight, 0x00000000);
+
+    descLayer.print(
+      fontDesc,
+      0,
+      0,
+      {
+        text: descText,
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_TOP
+      },
+      descWidth,
+      descHeight
+    );
+    applySolidColor(descLayer, TEXT_COLOR_HEX);
+
+    const DESC_Y = 460;                      // sedikit di bawah garis
+    const DESC_X = (W - descWidth) / 2;      // center
+    img.composite(descLayer, DESC_X, DESC_Y);
+
+    return await img.getBufferAsync(Jimp.MIME_PNG);
+  } catch (e) {
+    console.error('[toprank_auto] createCertificateBuffer error:', e);
+    return null;
+  }
+}
+
+async function sendTopRankCertificate(sock, groupJid, userJid, rank, count) {
+  try {
+    const nick   = await resolveDisplayName(sock, groupJid, userJid);
+    const buffer = await createCertificateBuffer(nick, rank, count);
+    if (!buffer) return;
+
+    const base = jidNormalizedUser(userJid);
+
+    await sock.sendMessage(groupJid, {
+      image: buffer,
+      mimetype: 'image/png',
+      caption:
+        '🏆 *CERTIFICATE OF ACHIEVEMENT*\n\n' +
+        `Nama  : *${nick}*\n` +
+        `Rank  : *#${rank}*\n` +
+        `Pesan : *${count}* pesan\n\n` +
+        'Terimakasih atas kontribusi aktifnya di grub WhatsApp DevOps Engineer 🙌',
+      mentions: [base],
+      ...channelInfo
+    });
+  } catch (e) {
+    console.error('[toprank_auto] sendTopRankCertificate error:', e);
+  }
+}
+
+/* ===================== LOGIKA AUTO TOP RANK ===================== */
+
+/** Simple guard supaya dalam 10 detik tidak spam notif berulang */
+function shouldNotifyNow(groupJid, uKey) {
+  const key = `${groupJid}:${uKey}`;
+  const now = Date.now();
+  const last = notifyGuard.get(key) || 0;
+  if (now - last < NOTIFY_COOLDOWN_MS) return false;
+  notifyGuard.set(key, now);
+  return true;
+}
+
+/**
+ * Dipanggil setiap selesai incrementMessageCount (per chat):
+ * - Kalau fitur auto ON
+ * - Hitung rank user
+ * - Kalau user masuk top 20 / naik di dalam top 20 → notif + sertifikat
+ * - Tidak reply ke pesan user (tidak pakai quoted)
+ */
+async function handleTopRankAutoAfterIncrement(sock, groupJid, userJid) {
+  try {
+    if (!groupJid || !groupJid.endsWith('@g.us')) return;
+    if (!userJid) return;
+
+    loadToggle();
+    const g = ensureGroup(groupJid);
+    if (!g.enabled) return;
+
+    const rankInfo = getUserRank(groupJid, userJid);
+    const uKey     = userKey(userJid);
+
+    if (!rankInfo) {
+      if (g.users[uKey]) {
+        g.users[uKey].lastRank = null;
+        saveToggle();
+      }
+      return;
+    }
+
+    const currentRank = rankInfo.rank;
+    const count       = rankInfo.count;
+
+    if (!g.users[uKey]) g.users[uKey] = { lastRank: null };
+    const prevRank =
+      typeof g.users[uKey].lastRank === 'number'
+        ? g.users[uKey].lastRank
+        : null;
+
+    // di luar top 20 → cuma update state
+    if (currentRank > 20) {
+      g.users[uKey].lastRank = currentRank;
+      saveToggle();
+      return;
+    }
+
+    const base    = baseJid(userJid);
+    const number  = (base.split('@')[0] || '').trim();
+    const mention = number ? `@${number}` : 'kamu';
+
+    // ===== CASE 1: baru masuk top 20 dari luar (>20) =====
+    if (prevRank !== null && prevRank > 20) {
+      if (!shouldNotifyNow(groupJid, uKey)) {
+        g.users[uKey].lastRank = currentRank;
+        saveToggle();
+        return;
+      }
+
+      const txt = [
+        '╭─〔 🏆 *TOP RANK UPDATE* 〕',
+        `│ Selamat ${mention}! 🎉`,
+        '│ Kamu *masuk 20 besar* di grup ini.',
+        `│ Peringkatmu sekarang: *#${currentRank}* dengan *${count}* pesan.`,
+        '│ ',
+        '│ Tetap aktif di diskusi ya ✨',
+        '╰────────────────────'
+      ].join('\n');
+
+      await sock.sendMessage(groupJid, {
+        text: txt,
+        ...(number ? { mentions: [base] } : {}),
+        ...channelInfo
+      });
+
+      await sendTopRankCertificate(sock, groupJid, userJid, currentRank, count);
+
+      g.users[uKey].lastRank = currentRank;
+      saveToggle();
+      return;
+    }
+
+    // ===== CASE 2: sudah di dalam top 20 & rank membaik (angka makin kecil) =====
+    if (typeof prevRank === 'number' && prevRank <= 20 && currentRank < prevRank) {
+      if (!shouldNotifyNow(groupJid, uKey)) {
+        g.users[uKey].lastRank = currentRank;
+        saveToggle();
+        return;
+      }
+
+      const txt = [
+        '╭─〔 🏆 *TOP RANK UPDATE* 〕',
+        `│ Mantap ${mention}! 🚀`,
+        `│ Peringkatmu *naik* dari *#${prevRank}* → *#${currentRank}*.`,
+        `│ Total pesan: *${count}*`,
+        '│ ',
+        '│ Terus pertahankan keaktifanmu 🔥',
+        '╰────────────────────'
+      ].join('\n');
+
+      await sock.sendMessage(groupJid, {
+        text: txt,
+        ...(number ? { mentions: [base] } : {}),
+        ...channelInfo
+      });
+
+      await sendTopRankCertificate(sock, groupJid, userJid, currentRank, count);
+
+      g.users[uKey].lastRank = currentRank;
+      saveToggle();
+      return;
+    }
+
+    // rank tidak membaik / tetap / turun di dalam top 20 → cuma update
+    g.users[uKey].lastRank = currentRank;
+    saveToggle();
+  } catch (e) {
+    console.error('[toprank_auto] error handleTopRankAutoAfterIncrement:', e);
+  }
+}
+
+/* ===================== COMMAND HANDLER ===================== */
+
+async function topRankAutoCommand(sock, chatId, message, argsRaw = '') {
+  if (!chatId.endsWith('@g.us')) {
+    await sock.sendMessage(
+      chatId,
+      { text: 'Perintah ini hanya bisa dipakai di *grup*.', ...channelInfo },
+      { quoted: message }
+    );
+    return;
+  }
+
+  const senderId = message.key.participant || message.key.remoteJid;
+
+  let isSenderAdmin = false;
+  try {
+    const st = await isAdmin(sock, chatId, senderId, message);
+    isSenderAdmin = st.isSenderAdmin || message.key.fromMe;
+  } catch (e) {
+    console.error('[toprank_auto] gagal cek admin:', e);
+  }
+
+  if (!isSenderAdmin) {
+    await sock.sendMessage(
+      chatId,
+      { text: '🚫 *Khusus Admin Grup / Owner Bot*', ...channelInfo },
+      { quoted: message }
+    );
+    return;
+  }
+
+  loadToggle();
+  const g   = ensureGroup(chatId);
+  const arg = (argsRaw || '').trim().toLowerCase();
+
+  if (!arg || arg === 'status') {
+    const statusText = g.enabled ? '✅ *ON*' : '❌ *OFF* (default)';
+    const txt = [
+      '╭─〔 🏆 *AUTO TOP RANK* 〕',
+      `│ Status : ${statusText}`,
+      '│ ',
+      '│ 🔧 Pengaturan:',
+      '│ • .toprankauto on      → aktifkan notif realtime top 20 + sertifikat',
+      '│ • .toprankauto off     → matikan notif',
+      '│ • .toprankauto status  → cek status',
+      '│ ',
+      '│ ℹ️ Bot akan kirim notif & sertifikat ketika anggota:',
+      '│    • Masuk 20 besar pertama kali',
+      '│    • Naik peringkat di dalam top 20',
+      '╰────────────────────'
+    ].join('\n');
+
+    await sock.sendMessage(
+      chatId,
+      { text: txt, ...channelInfo },
+      { quoted: message }
+    );
+    return;
+  }
+
+  if (arg === 'on') {
+    g.enabled = true;
+    cache.groups[chatId] = g;
+    saveToggle();
+
+    await sock.sendMessage(
+      chatId,
+      {
+        text:
+          '✅ *Auto Top Rank* telah *AKTIF* di grup ini.\n' +
+          'Bot akan mengirim notif + sertifikat ketika anggota masuk/naik di 20 besar.',
+        ...channelInfo
+      },
+      { quoted: message }
+    );
+    return;
+  }
+
+  if (arg === 'off') {
+    g.enabled = false;
+    cache.groups[chatId] = g;
+    saveToggle();
+
+    await sock.sendMessage(
+      chatId,
+      {
+        text:
+          '❌ *Auto Top Rank* telah *DIMATIKAN* di grup ini.\n' +
+          'Data tetap tercatat, hanya notif realtime & sertifikat yang dihentikan.',
+        ...channelInfo
+      },
+      { quoted: message }
+    );
+    return;
+  }
+
+  const helpTxt = [
+    '❌ Argumen tidak dikenal.',
+    '',
+    'Gunakan:',
+    '• .toprankauto on',
+    '• .toprankauto off',
+    '• .toprankauto status'
+  ].join('\n');
+
+  await sock.sendMessage(
+    chatId,
+    { text: helpTxt, ...channelInfo },
+    { quoted: message }
+  );
+}
+
+module.exports = {
+  isTopRankAutoEnabled,
+  setTopRankAutoEnabled,
+  getUserRank,
+  handleTopRankAutoAfterIncrement,
+  topRankAutoCommand
+};

@@ -1,81 +1,77 @@
-const fs = require('fs');
-const path = require('path');
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const webp = require('node-webpmux');
-const crypto = require('crypto');
+// commands/take.js — set ulang EXIF stiker (pack|author) — Andika Bot style
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
-async function takeCommand(sock, chatId, message, args) {
-    try {
-        // Check if message is a reply to a sticker
-        const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        if (!quotedMessage?.stickerMessage) {
-            await sock.sendMessage(chatId, { text: '❌ Reply to a sticker with .take <packname>' });
-            return;
-        }
-
-        // Get the packname from args or use default
-        const packname = args.join(' ') || 'Knight Bot';
-
-        try {
-            // Download the sticker
-            const stickerBuffer = await downloadMediaMessage(
-                {
-                    key: message.message.extendedTextMessage.contextInfo.stanzaId,
-                    message: quotedMessage,
-                    messageType: 'stickerMessage'
-                },
-                'buffer',
-                {},
-                {
-                    logger: console,
-                    reuploadRequest: sock.updateMediaMessage
-                }
-            );
-
-            if (!stickerBuffer) {
-                await sock.sendMessage(chatId, { text: '❌ Failed to download sticker' });
-                return;
-            }
-
-            // Add metadata using webpmux
-            const img = new webp.Image();
-            await img.load(stickerBuffer);
-
-            // Create metadata
-            const json = {
-                'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-                'sticker-pack-name': packname,
-                'emojis': ['🤖']
-            };
-
-            // Create exif buffer
-            const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
-            const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
-            const exif = Buffer.concat([exifAttr, jsonBuffer]);
-            exif.writeUIntLE(jsonBuffer.length, 14, 4);
-
-            // Set the exif data
-            img.exif = exif;
-
-            // Get the final buffer with metadata
-            const finalBuffer = await img.save(null);
-
-            // Send the sticker
-            await sock.sendMessage(chatId, {
-                sticker: finalBuffer
-            }, {
-                quoted: message
-            });
-
-        } catch (error) {
-            console.error('Sticker processing error:', error);
-            await sock.sendMessage(chatId, { text: '❌ Error processing sticker' });
-        }
-
-    } catch (error) {
-        console.error('Error in take command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Error processing command' });
-    }
+async function bufferFromQuotedSticker(quoted) {
+  const stream = await downloadContentFromMessage(quoted.stickerMessage, 'sticker');
+  const chunks = [];
+  for await (const ch of stream) chunks.push(ch);
+  return Buffer.concat(chunks);
 }
 
-module.exports = takeCommand; 
+/**
+ * Cara pakai:
+ * 1) Reply stiker
+ * 2) Ketik: .take packname|author
+ */
+async function takeCommand(sock, chatId, message, args) {
+  try {
+    const q = message?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const isSticker = !!q?.stickerMessage;
+
+    if (!isSticker) {
+      const txt = [
+        '╭─〔 🧩 *TAKE STICKER EXIF* 〕',
+        '│ Balas sebuah *stiker* lalu kirim:',
+        '│ • *.take pack|author*',
+        '│ ',
+        '│ Contoh:',
+        '│ • *.take AndikaBot|Mas Dika*',
+        '╰───────────────────────────'
+      ].join('\n');
+      await sock.sendMessage(chatId, { text: txt }, { quoted: message });
+      return;
+    }
+
+    const joined = (args || []).join(' ');
+    const [pack, author] = joined.split('|').map(s => (s || '').trim());
+
+    if (!pack) {
+      const txt = [
+        '╭─〔 🧩 *FORMAT TAKE SALAH* 〕',
+        '│ Gunakan format:',
+        '│ • *.take pack|author*',
+        '│ ',
+        '│ Contoh:',
+        '│ • *.take AndikaBot|Mas Dika*',
+        '╰───────────────────────────'
+      ].join('\n');
+      await sock.sendMessage(chatId, { text: txt }, { quoted: message });
+      return;
+    }
+
+    // Ambil buffer webp dari stiker yang di-reply
+    const webp = await bufferFromQuotedSticker(q);
+
+    // Kirim ulang stiker dengan EXIF (packname/author) baru
+    await sock.sendMessage(
+      chatId,
+      {
+        sticker: webp,
+        packname: pack,
+        author: author || ''
+      },
+      { quoted: message }
+    );
+  } catch (err) {
+    console.error('Error in take command:', err);
+    const txt = [
+      '╭─〔 ❌ *GAGAL TAKE* 〕',
+      '│ Terjadi kesalahan saat mengubah EXIF stiker.',
+      '│ Coba ulangi beberapa saat lagi.',
+      '╰────────────────────────'
+    ].join('\n');
+    await sock.sendMessage(chatId, { text: txt }, { quoted: message });
+  }
+}
+
+module.exports = takeCommand;

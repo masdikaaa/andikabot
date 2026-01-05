@@ -1,0 +1,290 @@
+// commands/chatlimit.js — Andika Bot (Baileys v7 SAFE)
+// Fitur: Limit chat per-member per-grup
+// Default: 2 pesan per 24 jam. Jika lewat → pesan dihapus (butuh bot admin).
+// Command:
+//   .chatlimit check [@user]           (member bisa pakai; admin bisa cek orang lain)
+//   .chatlimit add <n> [@user/reply]   (ADMIN/OWNER/SUDO saja) → tambah kuota sisa
+//   .chatlimit del <n> [@user/reply]   (ADMIN/OWNER/SUDO saja) → kurangi kuota sisa
+//
+// Penyimpanan: ./data/chatlimit.json
+// Struktur:
+// {
+//   "groups": {
+//     "<groupJid>": {
+//       "defaultLimit": 2,
+//       "windowHours": 24,
+//       "members": {
+//          "<userJid>": { "left": 0, "resetAt": 1710000000000 }
+//       }
+//     }
+//   }
+// }
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { jidNormalizedUser } = require('@whiskeysockets/baileys');
+const isAdmin = require('../lib/isAdmin');
+const { isSudo } = require('../lib/index');
+
+const STORE_PATH = path.join(__dirname, '..', 'data', 'chatlimit.json');
+const DEFAULT_LIMIT = 2;
+const WINDOW_HOURS = 24;
+
+const ICON = { ok:'✅', err:'❌', info:'ℹ️', warn:'⚠️', time:'🕒', dot:'•' };
+const channelInfo = {
+  contextInfo: {
+    forwardingScore: 1,
+    isForwarded: true,
+    forwardedNewsletterMessageInfo: {
+      newsletterJid: '120363421594431163@newsletter',
+      newsletterName: 'Andika Bot',
+      serverMessageId: -1
+    }
+  }
+};
+
+/* ------------------ IO ------------------ */
+function ensureDir(p){ if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
+function readJSON(p, fb){ try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return fb; } }
+function writeJSON(p, o){ ensureDir(path.dirname(p)); fs.writeFileSync(p, JSON.stringify(o, null, 2)); }
+
+/* ------------------ Store helpers ------------------ */
+function loadStore() {
+  const j = readJSON(STORE_PATH, { groups: {} });
+  if (!j.groups) j.groups = {};
+  return j;
+}
+function saveStore(s){ writeJSON(STORE_PATH, s); }
+
+function getGroupNode(s, gid) {
+  if (!s.groups[gid]) s.groups[gid] = {
+    defaultLimit: DEFAULT_LIMIT,
+    windowHours: WINDOW_HOURS,
+    members: {}
+  };
+  return s.groups[gid];
+}
+
+function now(){ return Date.now(); }
+function msUntil(ts){ return Math.max(0, ts - now()); }
+function fmtLeft(ms) {
+  const sec = Math.ceil(ms/1000);
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  if (h) return `${h}j ${m}m`;
+  if (m) return `${m}m`;
+  return `${s}d`;
+}
+
+function normalizeJid(j){ return jidNormalizedUser(j || ''); }
+
+/* Reset window kalau sudah lewat */
+function maybeRoll(groupNode, userJid) {
+  const u = groupNode.members[userJid];
+  const winMs = groupNode.windowHours * 3600 * 1000;
+  if (!u || !u.resetAt || now() >= u.resetAt) {
+    groupNode.members[userJid] = {
+      left: groupNode.defaultLimit,
+      resetAt: now() + winMs
+    };
+  }
+}
+
+/* ------------------ Enforcement (dipanggil tiap pesan masuk) ------------------ */
+async function enforceChatLimit(sock, chatId, senderId, message) {
+  try {
+    // hanya di grup & bukan pesan bot sendiri
+    if (!chatId.endsWith('@g.us')) return { ok: true };
+    if (message?.key?.fromMe) return { ok: true };
+
+    const s = loadStore();
+    const g = getGroupNode(s, chatId);
+    const user = normalizeJid(senderId);
+
+    // Admin grup / owner / sudo bebas limit
+    let admin = { isSenderAdmin: false, isBotAdmin: false };
+    try { admin = await isAdmin(sock, chatId, senderId, message); } catch {}
+    const senderIsSudo = await isSudo(senderId);
+    if (admin.isSenderAdmin || message.key.fromMe || senderIsSudo) return { ok: true };
+
+    // Roll window dan cek jatah
+    maybeRoll(g, user);
+    const u = g.members[user];
+
+    if (u.left <= 0) {
+      // Over limit → hapus pesan kalau bot admin
+      if (admin.isBotAdmin) {
+        try {
+          await sock.sendMessage(chatId, {
+            delete: {
+              remoteJid: chatId,
+              fromMe: false,
+              id: message.key.id,
+              participant: message.key.participant
+            }
+          });
+        } catch {}
+      }
+      // Beri info singkat (hindari spam: random 30%)
+      if (Math.random() < 0.3) {
+        const leftMs = msUntil(u.resetAt);
+        const txt = [
+          '╭─〔 🚫 *LIMIT CHAT HABIS* 〕',
+          `│ ${ICON.warn} Kuota kamu sudah 0.`,
+          `│ ${ICON.time} Reset dalam *${fmtLeft(leftMs)}*.`,
+          '╰────────────────────────'
+        ].join('\n');
+        try { await sock.sendMessage(chatId, { text: txt, ...channelInfo }, { quoted: message }); } catch {}
+      }
+      return { ok: false, deleted: !!admin.isBotAdmin };
+    }
+
+    // Masih ada kuota → kurangi 1
+    u.left -= 1;
+    saveStore(s);
+    return { ok: true };
+  } catch (e) {
+    // fallback: jangan block chat kalau error
+    return { ok: true };
+  }
+}
+
+/* ------------------ Command: .chatlimit ------------------ */
+function parseArgs(text) {
+  const parts = String(text||'').trim().split(/\s+/).filter(Boolean);
+  const sub = (parts[0]||'').toLowerCase();
+  const num = parts[1] ? parseInt(parts[1], 10) : NaN;
+  return { sub, num: Number.isNaN(num) ? null : num };
+}
+
+function findTargetFromContext(message) {
+  const ctx = message.message?.extendedTextMessage?.contextInfo || {};
+  const mentioned = ctx.mentionedJid || [];
+  if (mentioned.length) return normalizeJid(mentioned[0]);
+  const quoted = ctx?.participant;
+  if (quoted) return normalizeJid(quoted);
+  return null;
+}
+
+async function chatlimitCommand(sock, chatId, message, argsStr) {
+  const raw = String(argsStr||'').trim();
+  const { sub, num } = parseArgs(raw);
+  const sender = message.key.participant || message.key.remoteJid;
+
+  // Admin gate untuk add/del
+  let adminState = { isSenderAdmin: false, isBotAdmin: false };
+  try { adminState = await isAdmin(sock, chatId, sender, message); } catch {}
+  const senderIsSudo = await isSudo(sender);
+
+  const s = loadStore();
+  const g = getGroupNode(s, chatId);
+
+  // .chatlimit check [@user]   (free untuk semua)
+  if (sub === 'check' || sub === '') {
+    const target = findTargetFromContext(message) || (message.key.participant || message.key.remoteJid);
+    const tJid = normalizeJid(target);
+
+    maybeRoll(g, tJid);
+    const u = g.members[tJid];
+    const leftMs = msUntil(u.resetAt);
+
+    const txt = [
+      '╭─〔 ⏳ *SISA KUOTA CHAT* 〕',
+      `│ ${ICON.info} User : @${(tJid||'').split('@')[0]}`,
+      `│ ${ICON.ok} Sisa : *${u.left}* pesan`,
+      `│ ${ICON.time} Reset: *${fmtLeft(leftMs)}*`,
+      '╰────────────────────────'
+    ].join('\n');
+
+    await sock.sendMessage(chatId, {
+      text: txt,
+      mentions: [tJid],
+      ...channelInfo
+    }, { quoted: message });
+    return;
+  }
+
+  // .chatlimit add <n> [@user|reply]   (ADMIN/OWNER/SUDO)
+  if (sub === 'add') {
+    if (!(adminState.isSenderAdmin || message.key.fromMe || senderIsSudo)) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} *Khusus Admin/Owner/Sudo.*`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    if (num === null || num <= 0) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} Format: *.chatlimit add <angka> [@user/ balas pesan]*`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    const target = findTargetFromContext(message);
+    if (!target) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} Tag atau reply user yang mau ditambah kuotanya.`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    const tJid = normalizeJid(target);
+    maybeRoll(g, tJid);
+    g.members[tJid].left += num;
+    saveStore(s);
+
+    const txt = [
+      '╭─〔 ✅ *KUOTA DITAMBAH* 〕',
+      `│ ${ICON.ok} User : @${tJid.split('@')[0]}`,
+      `│ ${ICON.info} +${num} pesan`,
+      `│ ${ICON.time} Reset: *${fmtLeft(msUntil(g.members[tJid].resetAt))}*`,
+      '╰────────────────────────'
+    ].join('\n');
+    await sock.sendMessage(chatId, { text: txt, mentions: [tJid], ...channelInfo }, { quoted: message });
+    return;
+  }
+
+  // .chatlimit del <n> [@user|reply]   (ADMIN/OWNER/SUDO)
+  if (sub === 'del') {
+    if (!(adminState.isSenderAdmin || message.key.fromMe || senderIsSudo)) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} *Khusus Admin/Owner/Sudo.*`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    if (num === null || num <= 0) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} Format: *.chatlimit del <angka> [@user/ balas pesan]*`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    const target = findTargetFromContext(message);
+    if (!target) {
+      await sock.sendMessage(chatId, { text: `${ICON.err} Tag atau reply user yang mau dikurangi kuotanya.`, ...channelInfo }, { quoted: message });
+      return;
+    }
+    const tJid = normalizeJid(target);
+    maybeRoll(g, tJid);
+    g.members[tJid].left = Math.max(0, g.members[tJid].left - num);
+    saveStore(s);
+
+    const txt = [
+      '╭─〔 🗑️ *KUOTA DIKURANGI* 〕',
+      `│ ${ICON.ok} User : @${tJid.split('@')[0]}`,
+      `│ ${ICON.info} -${num} pesan`,
+      `│ ${ICON.time} Reset: *${fmtLeft(msUntil(g.members[tJid].resetAt))}*`,
+      '╰────────────────────────'
+    ].join('\n');
+    await sock.sendMessage(chatId, { text: txt, mentions: [tJid], ...channelInfo }, { quoted: message });
+    return;
+  }
+
+  // fallback help
+  const help = [
+    '╭─〔 💬 *CHAT LIMIT* 〕',
+    `│ ${ICON.dot} Default: 2 pesan/24 jam, auto reset.`,
+    `│ ${ICON.dot} Lewat kuota → pesan dihapus (butuh bot admin).`,
+    '│',
+    `│ ${ICON.dot} *.chatlimit check* [@user]`,
+    `│ ${ICON.dot} *.chatlimit add* <n> [@user/ reply]  (admin)`,
+    `│ ${ICON.dot} *.chatlimit del* <n> [@user/ reply]  (admin)`,
+    '╰────────────────────────'
+  ].join('\n');
+  await sock.sendMessage(chatId, { text: help, ...channelInfo }, { quoted: message });
+}
+
+/* ------------------ Export ------------------ */
+module.exports = {
+  enforceChatLimit,
+  chatlimitCommand
+};

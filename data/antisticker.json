@@ -1,0 +1,17 @@
+{
+  "120363423738280537@g.us": {
+    "enabled": true,
+    "limit": 1,
+    "action": "delete"
+  },
+  "120363045421939458@g.us": {
+    "enabled": true,
+    "limit": 0,
+    "action": "delete"
+  },
+  "120363422087154476@g.us": {
+    "enabled": true,
+    "limit": 0,
+    "action": "delete"
+  }
+}

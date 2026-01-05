@@ -31,13 +31,13 @@ async function stickercropCommand(sock, chatId, message) {
 
     if (!mediaMessage) {
         await sock.sendMessage(chatId, { 
-            text: 'Please reply to an image/video/sticker with .crop, or send an image/video/sticker with .crop as the caption.',
+            text: '❗ *Balas gambar/video/stiker dengan .crop*, atau kirim gambar/video/stiker dengan caption *.crop*.',
             contextInfo: {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }
@@ -53,13 +53,13 @@ async function stickercropCommand(sock, chatId, message) {
 
         if (!mediaBuffer) {
             await sock.sendMessage(chatId, { 
-                text: 'Failed to download media. Please try again.',
+                text: '❌ Gagal mengunduh media. Coba lagi ya.',
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
+                        newsletterJid: '120363421594431163@newsletter',
+                        newsletterName: 'Andika Bot',
                         serverMessageId: -1
                     }
                 }
@@ -165,7 +165,7 @@ async function stickercropCommand(sock, chatId, message) {
         // Get the final buffer with metadata
         const finalBuffer = await img.save(null);
 
-        // Send the sticker
+        // Kirim stiker
         await sock.sendMessage(chatId, { 
             sticker: finalBuffer
         },{ quoted: messageToQuote });
@@ -181,13 +181,13 @@ async function stickercropCommand(sock, chatId, message) {
     } catch (error) {
         console.error('Error in stickercrop command:', error);
         await sock.sendMessage(chatId, { 
-            text: 'Failed to crop sticker! Try with an image.',
+            text: '❌ *Gagal crop stiker!* Coba dengan gambar ya.',
             contextInfo: {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }
@@ -241,7 +241,8 @@ async function stickercropFromBuffer(inputBuffer, isAnimated) {
     const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
     const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
     const exif = Buffer.concat([exifAttr, jsonBuffer]);
-    exif.writeUIntLE(jsonBuffer.length, 14, 4);
+    const len = jsonBuffer.length;
+    exif.writeUIntLE(len, 14, 4);
     img.exif = exif;
     const finalBuffer = await img.save(null);
 

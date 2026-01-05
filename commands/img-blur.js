@@ -4,14 +4,14 @@ const sharp = require('sharp');
 
 async function blurCommand(sock, chatId, message, quotedMessage) {
     try {
-        // Get the image to blur
+        // Ambil gambar yang akan diblur
         let imageBuffer;
         
         if (quotedMessage) {
-            // If replying to a message
+            // Jika membalas pesan
             if (!quotedMessage.imageMessage) {
                 await sock.sendMessage(chatId, { 
-                    text: '❌ Please reply to an image message' 
+                    text: '⚠️ *Harap balas ke pesan gambar terlebih dahulu.*' 
                 }, { quoted: message });
                 return;
             }
@@ -29,7 +29,7 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
                 { }
             );
         } else if (message.message?.imageMessage) {
-            // If image is in current message
+            // Jika gambar ada di pesan saat ini
             imageBuffer = await downloadMediaMessage(
                 message,
                 'buffer',
@@ -38,35 +38,35 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
             );
         } else {
             await sock.sendMessage(chatId, { 
-                text: '❌ Please reply to an image or send an image with caption .blur' 
+                text: '⚠️ *Balas gambar atau kirim gambar dengan caption* `.blur`' 
             }, { quoted: message });
             return;
         }
 
-        // Resize and optimize image
+        // Resize & optimasi gambar
         const resizedImage = await sharp(imageBuffer)
-            .resize(800, 800, { // Resize to max 800x800
+            .resize(800, 800, { // Maks 800x800
                 fit: 'inside',
                 withoutEnlargement: true
             })
-            .jpeg({ quality: 80 }) // Convert to JPEG with 80% quality
+            .jpeg({ quality: 80 }) // JPEG kualitas 80%
             .toBuffer();
 
-        // Apply blur effect directly using sharp
+        // Terapkan efek blur
         const blurredImage = await sharp(resizedImage)
-            .blur(10) // Blur radius of 10
+            .blur(10) // Radius blur 10
             .toBuffer();
 
-        // Send the blurred image
+        // Kirim gambar blur
         await sock.sendMessage(chatId, {
             image: blurredImage,
-            caption: '*[ ✔ ] Image Blurred Successfully*',
+            caption: '✅ *Gambar berhasil di-blur!*',
             contextInfo: {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }
@@ -75,9 +75,9 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
     } catch (error) {
         console.error('Error in blur command:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ Failed to blur image. Please try again later.' 
+            text: '❌ *Gagal memproses blur gambar. Coba lagi nanti ya!*' 
         }, { quoted: message });
     }
 }
 
-module.exports = blurCommand; 
+module.exports = blurCommand;

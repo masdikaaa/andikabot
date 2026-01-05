@@ -1,33 +1,33 @@
 const insults = [
-    "You're like a cloud. When you disappear, it's a beautiful day!",
-    "You bring everyone so much joy when you leave the room!",
-    "I'd agree with you, but then we'd both be wrong.",
-    "You're not stupid; you just have bad luck thinking.",
-    "Your secrets are always safe with me. I never even listen to them.",
-    "You're proof that even evolution takes a break sometimes.",
-    "You have something on your chin... no, the third one down.",
-    "You're like a software update. Whenever I see you, I think, 'Do I really need this right now?'",
-    "You bring everyone happiness... you know, when you leave.",
-    "You're like a penny—two-faced and not worth much.",
-    "You have something on your mind... oh wait, never mind.",
-    "You're the reason they put directions on shampoo bottles.",
-    "You're like a cloud. Always floating around with no real purpose.",
-    "Your jokes are like expired milk—sour and hard to digest.",
-    "You're like a candle in the wind... useless when things get tough.",
-    "You have something unique—your ability to annoy everyone equally.",
-    "You're like a Wi-Fi signal—always weak when needed most.",
-    "You're proof that not everyone needs a filter to be unappealing.",
-    "Your energy is like a black hole—it just sucks the life out of the room.",
-    "You have the perfect face for radio.",
-    "You're like a traffic jam—nobody wants you, but here you are.",
-    "You're like a broken pencil—pointless.",
-    "Your ideas are so original, I'm sure I've heard them all before.",
-    "You're living proof that even mistakes can be productive.",
-    "You're not lazy; you're just highly motivated to do nothing.",
-    "Your brain's running Windows 95—slow and outdated.",
-    "You're like a speed bump—nobody likes you, but everyone has to deal with you.",
-    "You're like a cloud of mosquitoes—just irritating.",
-    "You bring people together... to talk about how annoying you are."
+    "Kamu tuh kayak awan—pas hilang, harinya jadi indah! 🌤️",
+    "Kamu bikin semua orang senang… pas kamu keluar ruangan. 😌🚪",
+    "Aku setuju sama kamu… tapi nanti kita berdua sama-sama salah. 🙃",
+    "Kamu bukan bodoh, cuma sial aja kalau lagi mikir. 😅",
+    "Rahasiamu aman kok… soalnya aku nggak pernah dengerin. 🤫",
+    "Kamu bukti kalau evolusi kadang cuti. 🧬😬",
+    "Ada sesuatu di dagumu… eh, yang ketiga ke bawah itu lho. 🙊",
+    "Kamu kayak update software—liat kamu bikin mikir, “Perlu nggak sih sekarang?” 🔁📱",
+    "Kamu bikin orang bahagia… ya, waktu kamu pergi. 🙂👉",
+    "Kamu kayak koin—muka dua dan nilainya kecil. 🪙",
+    "Kamu ada yang lagi dipikirin… eh, lupa deh. 🤷",
+    "Kamu alasan kenapa botol sampo ada petunjuk cara pakai. 🧴🤦",
+    "Kamu kayak awan—melayang tanpa tujuan. ☁️",
+    "Jokes kamu kayak susu basi—asem dan susah ditelan. 🥛🤢",
+    "Kamu kayak lilin di tengah badai—nggak berguna pas keadaan sulit. 🕯️🌬️",
+    "Kamu unik sih… uniknya bisa ngeselin semua orang secara merata. 😑",
+    "Kamu kayak sinyal Wi-Fi—lemah pas paling dibutuhin. 📶",
+    "Kamu bukti kalau nggak semua orang butuh filter biar nggak enak dilihat. 📵",
+    "Energi kamu tuh kayak lubang hitam—nyedot suasana ruangan. 🕳️",
+    "Kamu punya muka yang cocok… buat radio. 📻",
+    "Kamu kayak macet—nggak ada yang mau, tapi ya ada aja. 🚗🚗",
+    "Kamu kayak pensil patah—nggak ada gunanya. ✏️",
+    "Idemu orisinal banget… kayak yang sudah pernah kudengar semua. 🔁",
+    "Kamu bukti hidup kalau kesalahan juga bisa produktif. 🧪",
+    "Kamu bukan malas, cuma termotivasi untuk nggak ngapa-ngapain. 🛌",
+    "Otakmu kayak Windows 95—lemot dan jadul. 💾🖥️",
+    "Kamu kayak polisi tidur—nggak ada yang suka, tapi semua harus lewat. 🛑",
+    "Kamu kayak gerombolan nyamuk—cuma bikin gatel. 🦟",
+    "Kamu bikin orang kompak… buat bahas betapa ngeselinnya kamu. 🗣️"
 ];
 
 async function insultCommand(sock, chatId, message) {
@@ -39,29 +39,29 @@ async function insultCommand(sock, chatId, message) {
 
         let userToInsult;
         
-        // Check for mentioned users
+        // Cek mention
         if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
             userToInsult = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
         }
-        // Check for replied message
+        // Cek reply
         else if (message.message?.extendedTextMessage?.contextInfo?.participant) {
             userToInsult = message.message.extendedTextMessage.contextInfo.participant;
         }
         
         if (!userToInsult) {
             await sock.sendMessage(chatId, { 
-                text: 'Please mention someone or reply to their message to insult them!'
+                text: '⚠️ *Harap mention seseorang atau balas pesannya untuk nge-roast dia!*'
             });
             return;
         }
 
         const insult = insults[Math.floor(Math.random() * insults.length)];
 
-        // Add delay to avoid rate limiting
+        // Jeda kecil biar aman dari rate limit
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         await sock.sendMessage(chatId, { 
-            text: `Hey @${userToInsult.split('@')[0]}, ${insult}`,
+            text: `💬 @${userToInsult.split('@')[0]}, ${insult}`,
             mentions: [userToInsult]
         });
     } catch (error) {
@@ -70,7 +70,7 @@ async function insultCommand(sock, chatId, message) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             try {
                 await sock.sendMessage(chatId, { 
-                    text: 'Please try again in a few seconds.'
+                    text: '⏳ *Terlalu cepat.* Coba lagi beberapa detik lagi ya.'
                 });
             } catch (retryError) {
                 console.error('Error sending retry message:', retryError);
@@ -78,7 +78,7 @@ async function insultCommand(sock, chatId, message) {
         } else {
             try {
                 await sock.sendMessage(chatId, { 
-                    text: 'An error occurred while sending the insult.'
+                    text: '❌ *Terjadi kesalahan saat mengirim roast.*'
                 });
             } catch (sendError) {
                 console.error('Error sending error message:', sendError);

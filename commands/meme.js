@@ -4,30 +4,30 @@ async function memeCommand(sock, chatId, message) {
     try {
         const response = await fetch('https://shizoapi.onrender.com/api/memes/cheems?apikey=shizo');
         
-        // Check if response is an image
+        // Cek apakah respons berupa gambar
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('image')) {
             const imageBuffer = await response.buffer();
             
             const buttons = [
-                { buttonId: '.meme', buttonText: { displayText: '🎭 Another Meme' }, type: 1 },
-                { buttonId: '.joke', buttonText: { displayText: '😄 Joke' }, type: 1 }
+                { buttonId: '.meme', buttonText: { displayText: '🎭 Meme Lagi' }, type: 1 },
+                { buttonId: '.joke', buttonText: { displayText: '😄 Lelucon' }, type: 1 }
             ];
 
             await sock.sendMessage(chatId, { 
                 image: imageBuffer,
-                caption: "> Here's your cheems meme! 🐕",
+                caption: "> Nih meme cheems kamu! 🐕",
                 buttons: buttons,
                 headerType: 1
-            },{ quoted: message});
+            }, { quoted: message });
         } else {
             throw new Error('Invalid response type from API');
         }
     } catch (error) {
         console.error('Error in meme command:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ Failed to fetch meme. Please try again later.'
-        },{ quoted: message });
+            text: '❌ *Gagal mengambil meme. Coba lagi nanti ya!*'
+        }, { quoted: message });
     }
 }
 

@@ -1,113 +1,156 @@
+// commands/removebg.js
 const axios = require('axios');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { uploadImage } = require('../lib/uploadImage');
 
-async function getQuotedOrOwnImageUrl(sock, message) {
-    // 1) Quoted image (highest priority)
+const API_BASE = 'https://api.dreaded.site/api/removebg';
+
+/* ====== Style helpers (Andika Bot look) ====== */
+const LINE = '─'.repeat(34);
+const box = (title, lines = []) =>
+  `╭─〔 ${title} 〕\n${lines.map(l => `│ ${l}`).join('\n')}\n╰${LINE}`;
+
+/* ====== Utils ====== */
+function isValidUrl(s) { try { new URL(s); return true; } catch { return false; } }
+
+async function getQuotedOrOwnImageUrl(message) {
+  try {
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    if (quoted?.imageMessage) {
-        const stream = await downloadContentFromMessage(quoted.imageMessage, 'image');
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        const buffer = Buffer.concat(chunks);
-        return await uploadImage(buffer);
-    }
+    const take = quoted?.imageMessage ? quoted.imageMessage : message.message?.imageMessage;
+    if (!take) return null;
 
-    // 2) Image in the current message
-    if (message.message?.imageMessage) {
-        const stream = await downloadContentFromMessage(message.message.imageMessage, 'image');
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        const buffer = Buffer.concat(chunks);
-        return await uploadImage(buffer);
-    }
+    const stream = await downloadContentFromMessage(take, 'image');
+    const chunks = [];
+    for await (const c of stream) chunks.push(c);
+    const buffer = Buffer.concat(chunks);
 
+    // upload ke host publik → dapat URL langsung
+    return await uploadImage(buffer);
+  } catch (e) {
+    console.error('[removebg] getQuotedOrOwnImageUrl:', e.message);
     return null;
+  }
+}
+
+async function sendImageBuffer(sock, chatId, quoted, buf, mimetype = 'image/png') {
+  await sock.sendMessage(
+    chatId,
+    {
+      image: Buffer.isBuffer(buf) ? buf : Buffer.from(buf),
+      mimetype,
+      caption: '✨ Background berhasil dihapus!'
+    },
+    { quoted }
+  );
 }
 
 module.exports = {
-    name: 'removebg',
-    alias: ['rmbg', 'nobg'],
-    category: 'general',
-    desc: 'Remove background from images',
-    async exec(sock, message, args) {
-        try {
-            const chatId = message.key.remoteJid;
-            let imageUrl = null;
-            
-            // Check if args contain a URL
-            if (args.length > 0) {
-                const url = args.join(' ');
-                if (isValidUrl(url)) {
-                    imageUrl = url;
-                } else {
-                    return sock.sendMessage(chatId, { 
-                        text: '❌ Invalid URL provided.\n\nUsage: `.removebg https://example.com/image.jpg`' 
-                    }, { quoted: message });
-                }
-            } else {
-                // Try to get image from message or quoted message
-                imageUrl = await getQuotedOrOwnImageUrl(sock, message);
-                
-                if (!imageUrl) {
-                    return sock.sendMessage(chatId, { 
-                        text: '📸 *Remove Background Command*\n\nUsage:\n• `.removebg <image_url>`\n• Reply to an image with `.removebg`\n• Send image with `.removebg`\n\nExample: `.removebg https://example.com/image.jpg`' 
-                    }, { quoted: message });
-                }
-            }
+  name: 'removebg',
+  alias: ['rmbg', 'nobg'],
+  category: 'general',
+  desc: 'Remove background dari gambar',
+  async exec(sock, message, args) {
+    const chatId = message.key.remoteJid;
 
-        
-            // Call the remove background API
-            const apiUrl = `https://api.siputzx.my.id/api/iloveimg/removebg?image=${encodeURIComponent(imageUrl)}`;
-            
-            const response = await axios.get(apiUrl, {
-                responseType: 'arraybuffer',
-                timeout: 30000, // 30 second timeout
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-
-            if (response.status === 200 && response.data) {
-                // Send the processed image
-                await sock.sendMessage(chatId, {
-                    image: response.data,
-                    caption: '✨ *Background removed successfully!*\n\n𝗣𝗥𝗢𝗖𝗘𝗦𝗦𝗘𝗗 𝗕𝗬 𝗞𝗡𝗜𝗚𝗛𝗧-𝗕𝗢𝗧'
-                }, { quoted: message });
-            } else {
-                throw new Error('Failed to process image');
-            }
-
-        } catch (error) {
-            console.error('RemoveBG Error:', error.message);
-            
-            let errorMessage = '❌ Failed to remove background.';
-            
-            if (error.response?.status === 429) {
-                errorMessage = '⏰ Rate limit exceeded. Please try again later.';
-            } else if (error.response?.status === 400) {
-                errorMessage = '❌ Invalid image URL or format.';
-            } else if (error.response?.status === 500) {
-                errorMessage = '🔧 Server error. Please try again later.';
-            } else if (error.code === 'ECONNABORTED') {
-                errorMessage = '⏰ Request timeout. Please try again.';
-            } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
-                errorMessage = '🌐 Network error. Please check your connection.';
-            }
-            
-            await sock.sendMessage(chatId, { 
-                text: errorMessage 
-            }, { quoted: message });
-        }
+    // --- Ambil URL gambar (argumen / quoted / caption) ---
+    let imageUrl;
+    if (args.length > 0) {
+      const url = args.join(' ').trim();
+      if (!isValidUrl(url)) {
+        await sock.sendMessage(
+          chatId,
+          { text: box('❌ URL TIDAK VALID', [
+              'Contoh:',
+              '.removebg https://example.com/image.jpg'
+            ]) },
+          { quoted: message }
+        );
+        return;
+      }
+      imageUrl = url;
+    } else {
+      imageUrl = await getQuotedOrOwnImageUrl(message);
+      if (!imageUrl) {
+        await sock.sendMessage(
+          chatId,
+          { text: box('🖼️ REMOVE BACKGROUND', [
+              'Cara pakai:',
+              '• .removebg <image_url>',
+              '• Balas gambar dengan .removebg',
+              '• Kirim gambar + caption .removebg',
+              '',
+              'Contoh:',
+              '.removebg https://example.com/image.jpg'
+            ]) },
+          { quoted: message }
+        );
+        return;
+      }
     }
-};
 
-// Helper function to validate URL
-function isValidUrl(string) {
     try {
-        new URL(string);
-        return true;
-    } catch (_) {
-        return false;
+      // --- Panggil API ---
+      const apiUrl = `${API_BASE}?imageurl=${encodeURIComponent(imageUrl)}`;
+      const res = await axios.get(apiUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+
+      const ctype = String(res.headers['content-type'] || '');
+
+      // (1) Server kirim langsung image
+      if (ctype.startsWith('image/')) {
+        await sendImageBuffer(sock, chatId, message, res.data, ctype);
+        return;
+      }
+
+      // (2) Server kirim JSON → cek base64 / link hasil
+      let text = '';
+      try { text = Buffer.from(res.data).toString('utf8'); } catch {}
+      let json;
+      try { json = JSON.parse(text); } catch {}
+
+      if (json) {
+        if (json.imageBase64 && typeof json.imageBase64 === 'string') {
+          const b64 = json.imageBase64.replace(/^data:image\/\w+;base64,/, '');
+          const buf = Buffer.from(b64, 'base64');
+          await sendImageBuffer(sock, chatId, message, buf, 'image/png');
+          return;
+        }
+
+        const directUrl = json.url || json.resultUrl || json.result?.url;
+        if (typeof directUrl === 'string' && /^https?:\/\//i.test(directUrl)) {
+          const d = await axios.get(directUrl, { responseType: 'arraybuffer' });
+          await sendImageBuffer(sock, chatId, message, d.data, d.headers['content-type'] || 'image/png');
+          return;
+        }
+      }
+
+      // (3) Format tak dikenali
+      console.error('[removebg] Unexpected API response:', ctype, text?.slice(0, 200));
+      await sock.sendMessage(
+        chatId,
+        { text: box('❌ GAGAL MEMPROSES', [
+            'Server mengembalikan respons tidak dikenal.'
+          ]) },
+        { quoted: message }
+      );
+    } catch (error) {
+      console.error('RemoveBG Error:', error?.response?.status, error?.message);
+
+      let body = ['Terjadi kesalahan saat menghapus background.'];
+      if (error.response?.status === 429) body = ['Terlalu banyak permintaan. Coba lagi nanti.'];
+      else if (error.response?.status === 400) body = ['URL atau format gambar tidak valid.'];
+      else if (error.response?.status >= 500) body = ['Server bermasalah. Coba lagi nanti.'];
+      else if (error.code === 'ECONNABORTED') body = ['Timeout. Coba lagi.'];
+      else if (/(ENOTFOUND|ECONNREFUSED)/.test(error.message || '')) body = ['Gangguan jaringan. Periksa koneksi.'];
+
+      await sock.sendMessage(
+        chatId,
+        { text: box('❌ GAGAL', body) },
+        { quoted: message }
+      );
     }
-}
+  }
+};

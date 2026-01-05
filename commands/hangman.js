@@ -15,12 +15,16 @@ function startHangman(sock, chatId) {
         maxWrongGuesses: 6,
     };
 
-    sock.sendMessage(chatId, { text: `Game started! The word is: ${maskedWord}` });
+    sock.sendMessage(chatId, { 
+        text: `🎮 *Game Hangman dimulai!*\n🧩 Kata: ${maskedWord}\n✍️ Tebak huruf dengan kirim *.guess <huruf>*` 
+    });
 }
 
 function guessLetter(sock, chatId, letter) {
     if (!hangmanGames[chatId]) {
-        sock.sendMessage(chatId, { text: 'No game in progress. Start a new game with .hangman' });
+        sock.sendMessage(chatId, { 
+            text: '⚠️ *Belum ada permainan berlangsung.* Mulai baru dengan *.hangman*' 
+        });
         return;
     }
 
@@ -28,7 +32,9 @@ function guessLetter(sock, chatId, letter) {
     const { word, guessedLetters, maskedWord, maxWrongGuesses } = game;
 
     if (guessedLetters.includes(letter)) {
-        sock.sendMessage(chatId, { text: `You already guessed "${letter}". Try another letter.` });
+        sock.sendMessage(chatId, { 
+            text: `ℹ️ *Huruf "${letter}" sudah ditebak.* Coba huruf lain ya.` 
+        });
         return;
     }
 
@@ -40,18 +46,27 @@ function guessLetter(sock, chatId, letter) {
                 maskedWord[i] = letter;
             }
         }
-        sock.sendMessage(chatId, { text: `Good guess! ${maskedWord.join(' ')}` });
+        sock.sendMessage(chatId, { 
+            text: `✅ *Tebakan benar!* ${maskedWord.join(' ')}` 
+        });
 
         if (!maskedWord.includes('_')) {
-            sock.sendMessage(chatId, { text: `Congratulations! You guessed the word: ${word}` });
+            sock.sendMessage(chatId, { 
+                text: `🏆 *Selamat!* Kamu berhasil menebak kata: *${word}*` 
+            });
             delete hangmanGames[chatId];
         }
     } else {
         game.wrongGuesses += 1;
-        sock.sendMessage(chatId, { text: `Wrong guess! You have ${maxWrongGuesses - game.wrongGuesses} tries left.` });
+        const triesLeft = maxWrongGuesses - game.wrongGuesses;
+        sock.sendMessage(chatId, { 
+            text: `❌ *Salah tebak!* Sisa kesempatan: *${triesLeft}*` 
+        });
 
         if (game.wrongGuesses >= maxWrongGuesses) {
-            sock.sendMessage(chatId, { text: `Game over! The word was: ${word}` });
+            sock.sendMessage(chatId, { 
+                text: `💀 *Game over!* Kata yang benar: *${word}*` 
+            });
             delete hangmanGames[chatId];
         }
     }

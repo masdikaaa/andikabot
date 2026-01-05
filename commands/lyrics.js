@@ -1,43 +1,92 @@
+// commands/lyrics.js
 const fetch = require('node-fetch');
+const { channelInfo } = require('../lib/messageConfig');
+
+// Bersihkan dan rapikan teks lirik
+function cleanLyrics(raw, title = '') {
+  if (!raw) return '';
+
+  let cleaned = raw
+    .replace(/^\s*[\d]+\s*Contributors?/i, '')
+    .replace(/Lyrics/gi, '')
+    .replace(/Embed$/i, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  // Jika judul nempel di awal → pisahkan ke baris baru
+  if (title && cleaned.toLowerCase().startsWith(title.toLowerCase())) {
+    cleaned = cleaned.replace(new RegExp(`^${title}`, 'i'), `${title}\n`);
+  }
+
+  // Kalau baris pertama sama dengan judul → hapus aja
+  const lines = cleaned.split('\n').map(l => l.trim());
+  if (lines[0]?.toLowerCase() === title.toLowerCase()) {
+    lines.shift();
+  }
+
+  return lines.join('\n').trim();
+}
 
 async function lyricsCommand(sock, chatId, songTitle, message) {
+  try {
     if (!songTitle) {
-        await sock.sendMessage(chatId, { 
-            text: '🔍 Please enter the song name to get the lyrics! Usage: *lyrics <song name>*'
-        },{ quoted: message });
-        return;
+      const usage =
+`🎶 *FITUR LIRIK LAGU*  
+
+📘 *Cara pakai:*  
+> .lyrics <judul lagu>  
+
+📍 *Contoh:*  
+> .lyrics Kartonyono Medot Janji  
+> .lyrics Shape of You`;
+
+      await sock.sendMessage(chatId, { text: usage, ...channelInfo }, { quoted: message });
+      return;
     }
 
-    try {
-        // Use lyricsapi.fly.dev and return only the raw lyrics text
-        const apiUrl = `https://lyricsapi.fly.dev/api/lyrics?q=${encodeURIComponent(songTitle)}`;
-        const res = await fetch(apiUrl);
-        
-        if (!res.ok) {
-            const errText = await res.text();
-            throw errText;
-        }
-        
-        const data = await res.json();
+    await sock.sendMessage(chatId, { react: { text: '🎧', key: message.key } });
 
-        const lyrics = data && data.result && data.result.lyrics ? data.result.lyrics : null;
-        if (!lyrics) {
-            await sock.sendMessage(chatId, {
-                text: `❌ Sorry, I couldn't find any lyrics for "${songTitle}".`
-            },{ quoted: message });
-            return;
-        }
+    const apiUrl = `https://lyricsapi.fly.dev/api/lyrics?q=${encodeURIComponent(songTitle)}`;
+    const res = await fetch(apiUrl, { headers: { 'User-Agent': 'AndikaBot/3.0' } });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
 
-        const maxChars = 4096;
-        const output = lyrics.length > maxChars ? lyrics.slice(0, maxChars - 3) + '...' : lyrics;
+    const data = await res.json();
+    const result = data?.result;
+    const lyricsRaw = result?.lyrics;
+    const artist = result?.artist || 'Tidak diketahui';
+    const title = result?.title || songTitle;
 
-        await sock.sendMessage(chatId, { text: output }, { quoted: message });
-    } catch (error) {
-        console.error('Error in lyrics command:', error);
-        await sock.sendMessage(chatId, { 
-            text: `❌ An error occurred while fetching the lyrics for "${songTitle}".`
-        },{ quoted: message });
+    if (!lyricsRaw) {
+      await sock.sendMessage(chatId, {
+        text: `❌ *Lirik untuk* "${songTitle}" *tidak ditemukan.*`,
+        ...channelInfo
+      }, { quoted: message });
+      return;
     }
+
+    // Rapikan hasil
+    const lyrics = cleanLyrics(lyricsRaw, title);
+    const maxChars = 3500;
+    const shortLyrics = lyrics.length > maxChars ? lyrics.slice(0, maxChars) + '\n\n🎵 _(Lirik dipotong...)_' : lyrics;
+
+    const caption =
+`╭─〔 🎼 *LIRIK LAGU* 〕
+│ 🎙️ *Penyanyi:* ${artist}
+╰───────────────────────
+
+${shortLyrics}
+
+✨ *Lirik diambil & dirapikan oleh Andika Bot*`;
+
+    await sock.sendMessage(chatId, { text: caption, ...channelInfo }, { quoted: message });
+
+  } catch (error) {
+    console.error('[Lyrics Command Error]', error);
+    await sock.sendMessage(chatId, {
+      text: `❌ *Gagal mengambil lirik untuk* "${songTitle}".\n\nCoba lagi nanti ya! 🎶`,
+      ...channelInfo
+    }, { quoted: message });
+  }
 }
 
 module.exports = { lyricsCommand };

@@ -3,7 +3,7 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { uploadImage } = require('../lib/uploadImage');
 
 async function getQuotedOrOwnImageUrl(sock, message) {
-    // 1) Quoted image (highest priority)
+    // 1) Quoted image (prioritas tertinggi)
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     if (quoted?.imageMessage) {
         const stream = await downloadContentFromMessage(quoted.imageMessage, 'image');
@@ -13,7 +13,7 @@ async function getQuotedOrOwnImageUrl(sock, message) {
         return await uploadImage(buffer);
     }
 
-    // 2) Image in the current message
+    // 2) Gambar di pesan saat ini
     if (message.message?.imageMessage) {
         const stream = await downloadContentFromMessage(message.message.imageMessage, 'image');
         const chunks = [];
@@ -29,53 +29,52 @@ async function reminiCommand(sock, chatId, message, args) {
     try {
         let imageUrl = null;
         
-        // Check if args contain a URL
+        // Cek apakah args berisi URL
         if (args.length > 0) {
             const url = args.join(' ');
             if (isValidUrl(url)) {
                 imageUrl = url;
             } else {
                 return sock.sendMessage(chatId, { 
-                    text: '❌ Invalid URL provided.\n\nUsage: `.remini https://example.com/image.jpg`' 
+                    text: '❌ *URL tidak valid.*\n\n📌 *Cara pakai:* `.remini https://example.com/image.jpg`' 
                 }, { quoted: message });
             }
         } else {
-            // Try to get image from message or quoted message
+            // Coba ambil gambar dari pesan/quoted
             imageUrl = await getQuotedOrOwnImageUrl(sock, message);
             
             if (!imageUrl) {
                 return sock.sendMessage(chatId, { 
-                    text: '📸 *Remini AI Enhancement Command*\n\nUsage:\n• `.remini <image_url>`\n• Reply to an image with `.remini`\n• Send image with `.remini`\n\nExample: `.remini https://example.com/image.jpg`' 
+                    text: '📸 *Perintah Remini AI Enhancement*\n\n*Cara pakai:*\n• `.remini <image_url>`\n• Balas gambar dengan `.remini`\n• Kirim gambar dengan caption `.remini`\n\n*Contoh:* `.remini https://example.com/image.jpg`' 
                 }, { quoted: message });
             }
         }
 
-        // Call the Remini API
+        // Panggil API Remini
         const apiUrl = `https://api.princetechn.com/api/tools/remini?apikey=prince_tech_api_azfsbshfb&url=${encodeURIComponent(imageUrl)}`;
         
         const response = await axios.get(apiUrl, {
-            timeout: 60000, // 60 second timeout (AI processing takes longer)
+            timeout: 60000, // 60 detik
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
 
-
         if (response.data && response.data.success && response.data.result) {
             const result = response.data.result;
             
             if (result.image_url) {
-                // Download the enhanced image
+                // Unduh gambar hasil enhancement
                 const imageResponse = await axios.get(result.image_url, {
                     responseType: 'arraybuffer',
                     timeout: 30000
                 });
                 
                 if (imageResponse.status === 200 && imageResponse.data) {
-                    // Send the enhanced image
+                    // Kirim gambar hasil
                     await sock.sendMessage(chatId, {
                         image: imageResponse.data,
-                        caption: '✨ *Image enhanced successfully!*\n\n𝗘𝗡𝗛𝗔𝗡𝗖𝗘𝗗 𝗕𝗬 𝗞𝗡𝗜𝗚𝗛𝗧-𝗕𝗢𝗧'
+                        caption: '✨ *Gambar berhasil ditingkatkan!* \n\n_Ditingkatkan oleh KNIGHT-BOT_'
                     }, { quoted: message });
                 } else {
                     throw new Error('Failed to download enhanced image');
@@ -90,20 +89,20 @@ async function reminiCommand(sock, chatId, message, args) {
     } catch (error) {
         console.error('Remini Error:', error.message);
         
-        let errorMessage = '❌ Failed to enhance image.';
+        let errorMessage = '❌ *Gagal meningkatkan kualitas gambar.*';
         
         if (error.response?.status === 429) {
-            errorMessage = '⏰ Rate limit exceeded. Please try again later.';
+            errorMessage = '⏰ *Terlalu banyak permintaan.* Coba lagi nanti ya.';
         } else if (error.response?.status === 400) {
-            errorMessage = '❌ Invalid image URL or format.';
+            errorMessage = '❌ *URL atau format gambar tidak valid.*';
         } else if (error.response?.status === 500) {
-            errorMessage = '🔧 Server error. Please try again later.';
+            errorMessage = '🔧 *Server bermasalah.* Coba lagi nanti.';
         } else if (error.code === 'ECONNABORTED') {
-            errorMessage = '⏰ Request timeout. Please try again.';
+            errorMessage = '⏰ *Permintaan timeout.* Coba lagi ya.';
         } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
-            errorMessage = '🌐 Network error. Please check your connection.';
+            errorMessage = '🌐 *Gangguan jaringan.* Periksa koneksi kamu.';
         } else if (error.message.includes('Error processing image')) {
-            errorMessage = '❌ Image processing failed. Please try with a different image.';
+            errorMessage = '❌ *Proses gambar gagal.* Coba dengan gambar lain.';
         }
         
         await sock.sendMessage(chatId, { 
@@ -112,7 +111,7 @@ async function reminiCommand(sock, chatId, message, args) {
     }
 }
 
-// Helper function to validate URL
+// Helper untuk validasi URL
 function isValidUrl(string) {
     try {
         new URL(string);

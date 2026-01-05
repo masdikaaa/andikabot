@@ -1,92 +1,107 @@
-const { isAdmin } = require('../lib/isAdmin');
+// commands/promote.js
+const { isAdmin } = require('../lib/isAdmin'); // (tetap dibiarkan)
 
-// Function to handle manual promotions via command
+//
+// Helpers aman JID
+//
+function normalizeJid(p) {
+  if (!p) return '';
+  if (typeof p === 'string') return p;
+  const cand = p.id || p.jid || p.user || p.participant || p.sender || '';
+  return typeof cand === 'string' ? cand : '';
+}
+function baseNum(jid = '') {
+  const left = String(jid).split('@')[0];
+  return left.split(':')[0].replace(/\D/g, '');
+}
+function tag(jid = '') { return `@${String(jid).split('@')[0]}`; }
+
+//
+// Jejak eksekutor (supaya pengumuman menunjukkan siapa yang mengeksekusi)
+//
+const PROMOTE_TRACE = new Map(); // key: groupId, val: { by, at }
+const TRACE_TTL_MS = 15000;
+
+//
+// 1) Command: promote (tanpa pengumuman di sini)
+//
 async function promoteCommand(sock, chatId, mentionedJids, message) {
+  try {
+    if (!chatId.endsWith('@g.us')) {
+      await sock.sendMessage(chatId, { text: '⚠️ *Perintah ini hanya bisa dipakai di grup!*' }, { quoted: message });
+      return;
+    }
+
+    // Kumpulkan target (mention atau reply)
     let userToPromote = [];
-    
-    // Check for mentioned users
     if (mentionedJids && mentionedJids.length > 0) {
-        userToPromote = mentionedJids;
-    }
-    // Check for replied message
-    else if (message.message?.extendedTextMessage?.contextInfo?.participant) {
-        userToPromote = [message.message.extendedTextMessage.contextInfo.participant];
-    }
-    
-    // If no user found through either method
-    if (userToPromote.length === 0) {
-        await sock.sendMessage(chatId, { 
-            text: 'Please mention the user or reply to their message to promote!'
-        });
-        return;
+      userToPromote = mentionedJids.map(normalizeJid).filter(Boolean);
+    } else {
+      const ctx = message.message?.extendedTextMessage?.contextInfo;
+      const p = normalizeJid(ctx?.participant);
+      if (p) userToPromote = [p];
     }
 
-    try {
-        await sock.groupParticipantsUpdate(chatId, userToPromote, "promote");
-        
-        // Get usernames for each promoted user
-        const usernames = await Promise.all(userToPromote.map(async jid => {
-            
-            return `@${jid.split('@')[0]}`;
-        }));
-
-        // Get promoter's name (the bot user in this case)
-        const promoterJid = sock.user.id;
-        
-        const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
-            `👥 *Promoted User${userToPromote.length > 1 ? 's' : ''}:*\n` +
-            `${usernames.map(name => `• ${name}`).join('\n')}\n\n` +
-            `👑 *Promoted By:* @${promoterJid.split('@')[0]}\n\n` +
-            `📅 *Date:* ${new Date().toLocaleString()}`;
-        await sock.sendMessage(chatId, { 
-            text: promotionMessage,
-            mentions: [...userToPromote, promoterJid]
-        });
-    } catch (error) {
-        console.error('Error in promote command:', error);
-        await sock.sendMessage(chatId, { text: 'Failed to promote user(s)!'});
+    if (!userToPromote.length) {
+      await sock.sendMessage(chatId, { text: '⚠️ *Harap mention user atau balas pesannya untuk mempromosikan!*' }, { quoted: message });
+      return;
     }
+
+    // Catat eksekutor (yang menjalankan command)
+    const executorJid = normalizeJid(message.key?.participant || message.participant || message.key?.remoteJid);
+    PROMOTE_TRACE.set(chatId, { by: executorJid, at: Date.now() });
+
+    // Eksekusi promote
+    await sock.groupParticipantsUpdate(chatId, userToPromote, "promote");
+
+    // React sukses
+    try { await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } }); } catch {}
+  } catch (error) {
+    console.error('Error in promote command:', error);
+    await sock.sendMessage(chatId, { text: '❌ *Gagal mempromosikan user.*' }, { quoted: message });
+  }
 }
 
-// Function to handle automatic promotion detection
+//
+// 2) Event: kirim SATU pengumuman, tampilkan eksekutor
+//
 async function handlePromotionEvent(sock, groupId, participants, author) {
-    try {
-       /* console.log('Promotion Event Data:', {
-            groupId,
-            participants,
-            author
-        });*/
+  try {
+    // Normalisasi daftar peserta & author
+    const parts = (participants || []).map(normalizeJid).filter(Boolean);
+    if (!groupId || !parts.length) return;
 
-        // Get usernames for promoted participants
-        const promotedUsernames = await Promise.all(participants.map(async jid => {
-            return `@${jid.split('@')[0]} `;
-        }));
+    const botId = normalizeJid(sock.user?.id || '');
+    let shownAuthor = normalizeJid(author);
 
-        let promotedBy;
-        let mentionList = [...participants];
+    // Jika event berasal dari bot (atau author kosong), pakai jejak eksekutor
+    const authorIsBot = shownAuthor && baseNum(shownAuthor) === baseNum(botId);
+    const trace = PROMOTE_TRACE.get(groupId);
+    const traceValid = trace && (Date.now() - trace.at) < TRACE_TTL_MS;
 
-        if (author && author.length > 0) {
-            // Ensure author has the correct format
-            const authorJid = author;
-            promotedBy = `@${authorJid.split('@')[0]}`;
-            mentionList.push(authorJid);
-        } else {
-            promotedBy = 'System';
-        }
-
-        const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
-            `👥 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
-            `${promotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
-            `👑 *Promoted By:* ${promotedBy}\n\n` +
-            `📅 *Date:* ${new Date().toLocaleString()}`;
-        
-        await sock.sendMessage(groupId, {
-            text: promotionMessage,
-            mentions: mentionList
-        });
-    } catch (error) {
-        console.error('Error handling promotion event:', error);
+    if ((!shownAuthor || authorIsBot) && traceValid) {
+      shownAuthor = normalizeJid(trace.by);
+      PROMOTE_TRACE.delete(groupId);
     }
+
+    // Susun pesan
+    const promotedList = parts.map(jid => `• ${tag(jid)}`).join('\n');
+    const byLine = shownAuthor ? `\n\n👑 *Dijalankan Oleh:* ${tag(shownAuthor)}` : '';
+    const dateLine = `\n\n📅 *Tanggal:* ${new Date().toLocaleString()}`;
+
+    const text =
+`*『 PROMOSI GRUP 』*
+
+👥 *User yang Dipromosikan:*
+${promotedList}${byLine}${dateLine}`;
+
+    // Mentions hanya string JID
+    const mentions = Array.from(new Set([...parts, ...(shownAuthor ? [shownAuthor] : [])]));
+
+    await sock.sendMessage(groupId, { text, mentions });
+  } catch (error) {
+    console.error('Error handling promotion event:', error);
+  }
 }
 
 module.exports = { promoteCommand, handlePromotionEvent };

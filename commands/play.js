@@ -8,41 +8,41 @@ async function playCommand(sock, chatId, message) {
         
         if (!searchQuery) {
             return await sock.sendMessage(chatId, { 
-                text: "What song do you want to download?"
+                text: "🎵 *Mau download lagu apa?* Ketik judulnya ya."
             });
         }
 
-        // Search for the song
+        // Cari lagunya
         const { videos } = await yts(searchQuery);
         if (!videos || videos.length === 0) {
             return await sock.sendMessage(chatId, { 
-                text: "No songs found!"
+                text: "❌ *Lagu tidak ditemukan!* Coba judul lain ya."
             });
         }
 
-        // Send loading message
+        // Pesan loading
         await sock.sendMessage(chatId, {
-            text: "_Please wait your download is in progress_"
+            text: "_⏳ Mohon tunggu, proses download sedang berjalan..._"
         });
 
-        // Get the first video result
+        // Ambil video pertama
         const video = videos[0];
         const urlYt = video.url;
 
-        // Fetch audio data from API
+        // Ambil audio dari API
         const response = await axios.get(`https://apis-keith.vercel.app/download/dlmp3?url=${urlYt}`);
         const data = response.data;
 
         if (!data || !data.status || !data.result || !data.result.downloadUrl) {
             return await sock.sendMessage(chatId, { 
-                text: "Failed to fetch audio from the API. Please try again later."
+                text: "⚠️ *Gagal mengambil audio dari API.* Coba lagi nanti ya."
             });
         }
 
         const audioUrl = data.result.downloadUrl;
         const title = data.result.title;
 
-        // Send the audio
+        // Kirim audio
         await sock.sendMessage(chatId, {
             audio: { url: audioUrl },
             mimetype: "audio/mpeg",
@@ -52,12 +52,12 @@ async function playCommand(sock, chatId, message) {
     } catch (error) {
         console.error('Error in song2 command:', error);
         await sock.sendMessage(chatId, { 
-            text: "Download failed. Please try again later."
+            text: "❌ *Download gagal.* Coba lagi nanti ya."
         });
     }
 }
 
 module.exports = playCommand; 
 
-/*Powered by KNIGHT-BOT*
-*Credits to Keith MD*`*/
+/* Powered by KNIGHT-BOT
+   Credits to Keith MD */

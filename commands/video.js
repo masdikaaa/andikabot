@@ -53,21 +53,21 @@ async function videoCommand(sock, chatId, message) {
         
         
         if (!searchQuery) {
-            await sock.sendMessage(chatId, { text: 'What video do you want to download?' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: 'Mau unduh video apa?' }, { quoted: message });
             return;
         }
 
-        // Determine if input is a YouTube link
+        // Tentukan apakah input berupa link YouTube
         let videoUrl = '';
         let videoTitle = '';
         let videoThumbnail = '';
         if (searchQuery.startsWith('http://') || searchQuery.startsWith('https://')) {
             videoUrl = searchQuery;
         } else {
-            // Search YouTube for the video
+            // Cari video di YouTube
             const { videos } = await yts(searchQuery);
             if (!videos || videos.length === 0) {
-                await sock.sendMessage(chatId, { text: 'No videos found!' }, { quoted: message });
+                await sock.sendMessage(chatId, { text: 'Tidak ada video yang ditemukan!' }, { quoted: message });
                 return;
             }
             videoUrl = videos[0].url;
@@ -75,7 +75,7 @@ async function videoCommand(sock, chatId, message) {
             videoThumbnail = videos[0].thumbnail;
         }
 
-        // Send thumbnail immediately
+        // Kirim thumbnail lebih dulu
         try {
             const ytId = (videoUrl.match(/(?:youtu\.be\/|v=)([a-zA-Z0-9_-]{11})/) || [])[1];
             const thumb = videoThumbnail || (ytId ? `https://i.ytimg.com/vi/${ytId}/sddefault.jpg` : undefined);
@@ -83,20 +83,20 @@ async function videoCommand(sock, chatId, message) {
             if (thumb) {
                 await sock.sendMessage(chatId, {
                     image: { url: thumb },
-                    caption: `*${captionTitle}*\nDownloading...`
+                    caption: `*${captionTitle}*\nSedang mengunduh...`
                 }, { quoted: message });
             }
         } catch (e) { console.error('[VIDEO] thumb error:', e?.message || e); }
         
 
-        // Validate YouTube URL
+        // Validasi URL YouTube
         let urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
         if (!urls) {
-            await sock.sendMessage(chatId, { text: 'This is not a valid YouTube link!' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: 'Ini bukan tautan YouTube yang valid!' }, { quoted: message });
             return;
         }
 
-        // Get video: try Izumi first, then Okatsu fallback
+        // Ambil video: coba Izumi dulu, lalu fallback Okatsu
         let videoData;
         try {
             videoData = await getIzumiVideoByUrl(videoUrl);
@@ -104,19 +104,19 @@ async function videoCommand(sock, chatId, message) {
             videoData = await getOkatsuVideoByUrl(videoUrl);
         }
 
-        // Send video directly using the download URL
+        // Kirim video langsung dari URL unduhan
         await sock.sendMessage(chatId, {
             video: { url: videoData.download },
             mimetype: 'video/mp4',
             fileName: `${videoData.title || videoTitle || 'video'}.mp4`,
-            caption: `*${videoData.title || videoTitle || 'Video'}*\n\n> *_Downloaded by Knight Bot MD_*`
+            caption: `*${videoData.title || videoTitle || 'Video'}*\n\n> *_Diunduh oleh Knight Bot MD_*`
         }, { quoted: message });
 
 
     } catch (error) {
         console.error('[VIDEO] Command Error:', error?.message || error);
-        await sock.sendMessage(chatId, { text: 'Download failed: ' + (error?.message || 'Unknown error') }, { quoted: message });
+        await sock.sendMessage(chatId, { text: 'Gagal mengunduh: ' + (error?.message || 'Terjadi kesalahan') }, { quoted: message });
     }
 }
 
-module.exports = videoCommand; 
+module.exports = videoCommand;

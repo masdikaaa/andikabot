@@ -12,12 +12,20 @@ async function goodnightCommand(sock, chatId, message) {
         const json = await res.json();
         const goodnightMessage = json.result;
 
-        // Send the goodnight message
-        await sock.sendMessage(chatId, { text: goodnightMessage }, { quoted: message });
+        // Kirim pesan selamat malam
+        await sock.sendMessage(
+            chatId, 
+            { text: `🌙 *Selamat Malam:*\n${goodnightMessage}` }, 
+            { quoted: message }
+        );
     } catch (error) {
         console.error('Error in goodnight command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Failed to get goodnight message. Please try again later!' }, { quoted: message });
+        await sock.sendMessage(
+            chatId, 
+            { text: '❌ *Gagal mengambil pesan selamat malam. Coba lagi nanti ya!*' }, 
+            { quoted: message }
+        );
     }
 }
 
-module.exports = { goodnightCommand }; 
+module.exports = { goodnightCommand };

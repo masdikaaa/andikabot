@@ -6,13 +6,13 @@ async function stickerCommand(sock, chatId, message) {
     try {
         const quotedMsg = message.message.extendedTextMessage?.contextInfo?.quotedMessage;
         if (!quotedMsg) {
-            await sock.sendMessage(chatId, { text: 'Please reply to an image or video!' });
+            await sock.sendMessage(chatId, { text: '❗ *Balas dulu pesan berisi gambar atau video ya!*' });
             return;
         }
 
         const type = Object.keys(quotedMsg)[0];
         if (!['imageMessage', 'videoMessage'].includes(type)) {
-            await sock.sendMessage(chatId, { text: 'Please reply to an image or video!' });
+            await sock.sendMessage(chatId, { text: '❗ *Harap balas ke gambar atau video untuk dijadikan stiker.*' });
             return;
         }
 
@@ -25,14 +25,14 @@ async function stickerCommand(sock, chatId, message) {
         const tempInput = `./temp/temp_${Date.now()}.${type === 'imageMessage' ? 'jpg' : 'mp4'}`;
         const tempOutput = `./temp/sticker_${Date.now()}.webp`;
 
-        // Create temp directory if it doesn't exist
+        // Buat folder temp jika belum ada
         if (!fs.existsSync('./temp')) {
             fs.mkdirSync('./temp', { recursive: true });
         }
 
         fs.writeFileSync(tempInput, buffer);
 
-        // Convert to WebP using ffmpeg
+        // Konversi ke WebP via ffmpeg
         await new Promise((resolve, reject) => {
             const cmd = type === 'imageMessage' 
                 ? `ffmpeg -i "${tempInput}" -vf "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease" "${tempOutput}"`
@@ -48,13 +48,13 @@ async function stickerCommand(sock, chatId, message) {
             sticker: fs.readFileSync(tempOutput) 
         });
 
-        // Cleanup
+        // Bersihkan file sementara
         fs.unlinkSync(tempInput);
         fs.unlinkSync(tempOutput);
 
     } catch (error) {
         console.error('Error in sticker command:', error);
-        await sock.sendMessage(chatId, { text: 'Failed to create sticker!' });
+        await sock.sendMessage(chatId, { text: '❌ *Gagal membuat stiker!* Coba lagi ya 🙏' });
     }
 }
 

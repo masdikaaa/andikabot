@@ -1,0 +1,17 @@
+{
+  "globalEnabled": true,
+  "groups": {
+    "120363423738280537@g.us": {
+      "enabled": true,
+      "updatedAt": 1761555083174,
+      "sudoOnly": false
+    },
+    "120363421094111625@g.us": {
+      "enabled": true,
+      "updatedAt": 1759555068485
+    },
+    "120363422087154476@g.us": {
+      "enabled": true
+    }
+  }
+}

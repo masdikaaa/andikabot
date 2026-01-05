@@ -1,43 +1,75 @@
+// commands/mute.js
+const { channelInfo } = require('../lib/messageConfig');
 const isAdmin = require('../lib/isAdmin');
 
 async function muteCommand(sock, chatId, senderId, message, durationInMinutes) {
-    
-
+  try {
     const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
+
     if (!isBotAdmin) {
-        await sock.sendMessage(chatId, { text: 'Please make the bot an admin first.' }, { quoted: message });
-        return;
+      await sock.sendMessage(chatId, {
+        text: '⛔ *Jadikan bot sebagai admin terlebih dahulu!*',
+        ...channelInfo
+      }, { quoted: message });
+      return;
     }
 
     if (!isSenderAdmin) {
-        await sock.sendMessage(chatId, { text: 'Only group admins can use the mute command.' }, { quoted: message });
-        return;
+      await sock.sendMessage(chatId, {
+        text: '⚠️ *Hanya admin grup yang dapat menggunakan perintah mute!*',
+        ...channelInfo
+      }, { quoted: message });
+      return;
     }
 
-    try {
-        // Mute the group
-        await sock.groupSettingUpdate(chatId, 'announcement');
-        
-        if (durationInMinutes !== undefined && durationInMinutes > 0) {
-            const durationInMilliseconds = durationInMinutes * 60 * 1000;
-            await sock.sendMessage(chatId, { text: `The group has been muted for ${durationInMinutes} minutes.` }, { quoted: message });
-            
-            // Set timeout to unmute after duration
-            setTimeout(async () => {
-                try {
-                    await sock.groupSettingUpdate(chatId, 'not_announcement');
-                    await sock.sendMessage(chatId, { text: 'The group has been unmuted.' });
-                } catch (unmuteError) {
-                    console.error('Error unmuting group:', unmuteError);
-                }
-            }, durationInMilliseconds);
-        } else {
-            await sock.sendMessage(chatId, { text: 'The group has been muted.' }, { quoted: message });
+    // Update ke mode announcement (hanya admin bisa chat)
+    await sock.groupSettingUpdate(chatId, 'announcement');
+
+    const waktu = durationInMinutes && durationInMinutes > 0
+      ? `${durationInMinutes} menit`
+      : 'tanpa batas waktu';
+
+    const caption =
+`╭──────────────────────────
+│ 🔇 *GRUP DIMUTE!*
+│ 👤 Oleh: @${senderId.split('@')[0]}
+│ ⏱️ Durasi: ${waktu}
+│ 📅 ${new Date().toLocaleString('id-ID')}
+╰──────────────────────────
+💬 *Hanya admin yang dapat mengirim pesan selama periode ini.*`;
+
+    await sock.sendMessage(chatId, {
+      text: caption,
+      mentions: [senderId],
+      ...channelInfo
+    }, { quoted: message });
+
+    // Jika ada durasi, auto unmute
+    if (durationInMinutes && durationInMinutes > 0) {
+      const durationMs = durationInMinutes * 60 * 1000;
+      setTimeout(async () => {
+        try {
+          await sock.groupSettingUpdate(chatId, 'not_announcement');
+          const unmuteMsg =
+`╭──────────────────────────
+│ 🔔 *GRUP DIBUKA!*
+│ ⏰ Durasi mute telah berakhir.
+│ 📅 ${new Date().toLocaleString('id-ID')}
+╰──────────────────────────
+💬 *Semua anggota kini dapat mengirim pesan kembali.*`;
+          await sock.sendMessage(chatId, { text: unmuteMsg, ...channelInfo });
+        } catch (err) {
+          console.error('Error unmuting group:', err);
         }
-    } catch (error) {
-        console.error('Error muting/unmuting the group:', error);
-        await sock.sendMessage(chatId, { text: 'An error occurred while muting/unmuting the group. Please try again.' }, { quoted: message });
+      }, durationMs);
     }
+  } catch (error) {
+    console.error('❌ Error di perintah mute:', error);
+    await sock.sendMessage(chatId, {
+      text: '❌ *Terjadi kesalahan saat mute grup. Coba lagi nanti!*',
+      ...channelInfo
+    }, { quoted: message });
+  }
 }
 
 module.exports = muteCommand;

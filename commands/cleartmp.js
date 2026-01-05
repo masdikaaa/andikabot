@@ -5,7 +5,7 @@ const path = require('path');
 function clearDirectory(dirPath) {
     try {
         if (!fs.existsSync(dirPath)) {
-            return { success: false, message: `Directory does not exist: ${dirPath}` };
+            return { success: false, message: `📁 Folder tidak ditemukan: ${dirPath}` };
         }
         const files = fs.readdirSync(dirPath);
         let deletedCount = 0;
@@ -20,14 +20,14 @@ function clearDirectory(dirPath) {
                 }
                 deletedCount++;
             } catch (err) {
-                // Only log errors
-                console.error(`Error deleting file ${file}:`, err);
+                // Hanya log error
+                console.error(`Error menghapus file ${file}:`, err);
             }
         }
-        return { success: true, message: `Cleared ${deletedCount} files in ${path.basename(dirPath)}`, count: deletedCount };
+        return { success: true, message: `🧹 Berhasil menghapus ${deletedCount} file di *${path.basename(dirPath)}*`, count: deletedCount };
     } catch (error) {
-        console.error('Error in clearDirectory:', error);
-        return { success: false, message: `Failed to clear files in ${path.basename(dirPath)}`, error: error.message };
+        console.error('Error di clearDirectory:', error);
+        return { success: false, message: `❌ Gagal menghapus file di *${path.basename(dirPath)}*`, error: error.message };
     }
 }
 
@@ -48,11 +48,11 @@ async function clearTmpDirectory() {
 // Function to handle manual command
 async function clearTmpCommand(sock, chatId, msg) {
     try {
-        // Check if user is owner
+        // Cek apakah user adalah owner
         const isOwner = msg.key.fromMe;
         if (!isOwner) {
             await sock.sendMessage(chatId, { 
-                text: '❌ This command is only available for the owner!' 
+                text: '⛔ *Perintah ini khusus pemilik bot!*'
             });
             return;
         }
@@ -61,43 +61,43 @@ async function clearTmpCommand(sock, chatId, msg) {
         
         if (result.success) {
             await sock.sendMessage(chatId, { 
-                text: `✅ ${result.message}` 
+                text: `✅ ${result.message}`
             });
         } else {
             await sock.sendMessage(chatId, { 
-                text: `❌ ${result.message}` 
+                text: `❌ ${result.message}`
             });
         }
 
     } catch (error) {
-        console.error('Error in cleartmp command:', error);
+        console.error('Error di perintah cleartmp:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ Failed to clear temporary files!' 
+            text: '❌ *Gagal membersihkan file sementara!*'
         });
     }
 }
 
 // Start automatic clearing every 6 hours
 function startAutoClear() {
-    // Run immediately on startup
+    // Jalan langsung saat startup
     clearTmpDirectory().then(result => {
         if (!result.success) {
             console.error(`[Auto Clear] ${result.message}`);
         }
-        // No log for success, regardless of count
+        // Tidak perlu log jika sukses
     });
 
-    // Set interval for every 6 hours
+    // Interval setiap 6 jam
     setInterval(async () => {
         const result = await clearTmpDirectory();
         if (!result.success) {
             console.error(`[Auto Clear] ${result.message}`);
         }
-        // No log for success, regardless of count
-    }, 6 * 60 * 60 * 1000); // 6 hours in milliseconds
+        // Tidak perlu log jika sukses
+    }, 6 * 60 * 60 * 1000); // 6 jam dalam milidetik
 }
 
 // Start the automatic clearing
 startAutoClear();
 
-module.exports = clearTmpCommand; 
+module.exports = clearTmpCommand;

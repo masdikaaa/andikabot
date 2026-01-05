@@ -5,13 +5,13 @@ async function pairCommand(sock, chatId, message, q) {
     try {
         if (!q) {
             return await sock.sendMessage(chatId, {
-                text: "Please provide valid WhatsApp number\nExample: .pair 91702395XXXX",
+                text: "⚠️ *Harap berikan nomor WhatsApp yang valid*\n📌 *Contoh:* `.pair 62812345XXXX`",
                 contextInfo: {
                     forwardingScore: 1,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
+                        newsletterJid: '120363421594431163@newsletter',
+                        newsletterName: 'Andika Bot',
                         serverMessageId: -1
                     }
                 }
@@ -24,13 +24,13 @@ async function pairCommand(sock, chatId, message, q) {
 
         if (numbers.length === 0) {
             return await sock.sendMessage(chatId, {
-                text: "Invalid number❌️ Please use the correct format!",
+                text: "❌ *Nomor tidak valid.* Gunakan format yang benar!",
                 contextInfo: {
                     forwardingScore: 1,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
+                        newsletterJid: '120363421594431163@newsletter',
+                        newsletterName: 'Andika Bot',
                         serverMessageId: -1
                     }
                 }
@@ -43,13 +43,13 @@ async function pairCommand(sock, chatId, message, q) {
 
             if (!result[0]?.exists) {
                 return await sock.sendMessage(chatId, {
-                    text: `That number is not registered on WhatsApp❗️`,
+                    text: "❗️ *Nomor tersebut tidak terdaftar di WhatsApp.*",
                     contextInfo: {
                         forwardingScore: 1,
                         isForwarded: true,
                         forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363161513685998@newsletter',
-                            newsletterName: 'KnightBot MD',
+                            newsletterJid: '120363421594431163@newsletter',
+                            newsletterName: 'Andika Bot',
                             serverMessageId: -1
                         }
                     }
@@ -57,13 +57,13 @@ async function pairCommand(sock, chatId, message, q) {
             }
 
             await sock.sendMessage(chatId, {
-                text: "Wait a moment for the code",
+                text: "⏳ *Tunggu sebentar, sedang mengambil kode…*",
                 contextInfo: {
                     forwardingScore: 1,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
+                        newsletterJid: '120363421594431163@newsletter',
+                        newsletterName: 'Andika Bot',
                         serverMessageId: -1
                     }
                 }
@@ -80,13 +80,13 @@ async function pairCommand(sock, chatId, message, q) {
                     
                     await sleep(5000);
                     await sock.sendMessage(chatId, {
-                        text: `Your pairing code: ${code}`,
+                        text: `🔐 *Kode pairing kamu:* ${code}`,
                         contextInfo: {
                             forwardingScore: 1,
                             isForwarded: true,
                             forwardedNewsletterMessageInfo: {
-                                newsletterJid: '120363161513685998@newsletter',
-                                newsletterName: 'KnightBot MD',
+                                newsletterJid: '120363421594431163@newsletter',
+                                newsletterName: 'Andika Bot',
                                 serverMessageId: -1
                             }
                         }
@@ -97,8 +97,8 @@ async function pairCommand(sock, chatId, message, q) {
             } catch (apiError) {
                 console.error('API Error:', apiError);
                 const errorMessage = apiError.message === 'Service Unavailable' 
-                    ? "Service is currently unavailable. Please try again later."
-                    : "Failed to generate pairing code. Please try again later.";
+                    ? "🚧 *Layanan sedang tidak tersedia. Coba lagi nanti ya.*"
+                    : "❌ *Gagal membuat kode pairing. Coba lagi nanti ya.*";
                 
                 await sock.sendMessage(chatId, {
                     text: errorMessage,
@@ -106,8 +106,8 @@ async function pairCommand(sock, chatId, message, q) {
                         forwardingScore: 1,
                         isForwarded: true,
                         forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363161513685998@newsletter',
-                            newsletterName: 'KnightBot MD',
+                            newsletterJid: '120363421594431163@newsletter',
+                            newsletterName: 'Andika Bot',
                             serverMessageId: -1
                         }
                     }
@@ -117,13 +117,13 @@ async function pairCommand(sock, chatId, message, q) {
     } catch (error) {
         console.error(error);
         await sock.sendMessage(chatId, {
-            text: "An error occurred. Please try again later.",
+            text: "❌ *Terjadi kesalahan. Coba lagi nanti ya.*",
             contextInfo: {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }
@@ -131,4 +131,4 @@ async function pairCommand(sock, chatId, message, q) {
     }
 }
 
-module.exports = pairCommand; 
+module.exports = pairCommand;

@@ -5,27 +5,27 @@ const path = require('path');
 
 async function emojimixCommand(sock, chatId, msg) {
     try {
-        // Get the text after command
+        // Ambil teks setelah command
         const text = msg.message?.conversation?.trim() || 
                     msg.message?.extendedTextMessage?.text?.trim() || '';
         
         const args = text.split(' ').slice(1);
         
         if (!args[0]) {
-            await sock.sendMessage(chatId, { text: '🎴 Example: .emojimix 😎+🥰' });
+            await sock.sendMessage(chatId, { text: '🎴 *Contoh:* .emojimix 😎+🥰' });
             return;
         }
 
         if (!text.includes('+')) {
             await sock.sendMessage(chatId, { 
-                text: '✳️ Separate the emoji with a *+* sign\n\n📌 Example: \n*.emojimix* 😎+🥰' 
+                text: '✳️ *Pisahkan emoji dengan tanda* `+`\n\n📌 *Contoh:*\n*.emojimix* 😎+🥰' 
             });
             return;
         }
 
         let [emoji1, emoji2] = args[0].split('+').map(e => e.trim());
 
-        // Using Tenor API endpoint
+        // Tenor API endpoint
         const url = `https://tenor.googleapis.com/v2/featured?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=${encodeURIComponent(emoji1)}_${encodeURIComponent(emoji2)}`;
 
         const response = await fetch(url);
@@ -33,30 +33,30 @@ async function emojimixCommand(sock, chatId, msg) {
 
         if (!data.results || data.results.length === 0) {
             await sock.sendMessage(chatId, { 
-                text: '❌ These emojis cannot be mixed! Try different ones.' 
+                text: '❌ *Emoji tersebut tidak bisa dicampur.* Coba kombinasi lain ya.' 
             });
             return;
         }
 
-        // Get the first result URL
+        // Ambil URL hasil pertama
         const imageUrl = data.results[0].url;
 
-        // Create temp directory if it doesn't exist
+        // Buat folder tmp jika belum ada
         const tmpDir = path.join(process.cwd(), 'tmp');
         if (!fs.existsSync(tmpDir)) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
 
-        // Generate random filenames with escaped paths
+        // Nama file sementara
         const tempFile = path.join(tmpDir, `temp_${Date.now()}.png`).replace(/\\/g, '/');
         const outputFile = path.join(tmpDir, `sticker_${Date.now()}.webp`).replace(/\\/g, '/');
 
-        // Download and save the image
+        // Unduh gambar
         const imageResponse = await fetch(imageUrl);
         const buffer = await imageResponse.buffer();
         fs.writeFileSync(tempFile, buffer);
 
-        // Convert to WebP using ffmpeg with proper path escaping
+        // Konversi ke WebP via ffmpeg
         const ffmpegCommand = `ffmpeg -i "${tempFile}" -vf "scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" "${outputFile}"`;
         
         await new Promise((resolve, reject) => {
@@ -70,20 +70,18 @@ async function emojimixCommand(sock, chatId, msg) {
             });
         });
 
-        // Check if output file exists
+        // Pastikan file jadi
         if (!fs.existsSync(outputFile)) {
             throw new Error('Failed to create sticker file');
         }
 
-        // Read the WebP file
+        // Kirim stiker
         const stickerBuffer = fs.readFileSync(outputFile);
-
-        // Send the sticker
         await sock.sendMessage(chatId, { 
             sticker: stickerBuffer 
         }, { quoted: msg });
 
-        // Cleanup temp files
+        // Bersihkan file sementara
         try {
             fs.unlinkSync(tempFile);
             fs.unlinkSync(outputFile);
@@ -94,9 +92,9 @@ async function emojimixCommand(sock, chatId, msg) {
     } catch (error) {
         console.error('Error in emojimix command:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ Failed to mix emojis! Make sure you\'re using valid emojis.\n\nExample: .emojimix 😎+🥰' 
+            text: '❌ *Gagal mencampur emoji!* Pastikan kamu pakai emoji yang valid.\n\n📌 *Contoh:* .emojimix 😎+🥰' 
         });
     }
 }
 
-module.exports = emojimixCommand; 
+module.exports = emojimixCommand;

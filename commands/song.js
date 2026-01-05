@@ -58,7 +58,7 @@ async function songCommand(sock, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
         if (!text) {
-            await sock.sendMessage(chatId, { text: 'Usage: .song <song name or YouTube link>' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '📥 *Cara pakai:* .song <judul lagu atau link YouTube>' }, { quoted: message });
             return;
         }
 
@@ -68,30 +68,30 @@ async function songCommand(sock, chatId, message) {
         } else {
 			const search = await yts(text);
 			if (!search || !search.videos.length) {
-                await sock.sendMessage(chatId, { text: 'No results found.' }, { quoted: message });
+                await sock.sendMessage(chatId, { text: '❌ *Tidak ada hasil yang cocok.*' }, { quoted: message });
                 return;
             }
 			video = search.videos[0];
         }
 
-        // Inform user
+        // Informasi ke user
         await sock.sendMessage(chatId, {
             image: { url: video.thumbnail },
-            caption: `🎵 Downloading: *${video.title}*\n⏱ Duration: ${video.timestamp}`
+            caption: `🎵 *Mengunduh:* ${video.title}\n⏱️ *Durasi:* ${video.timestamp}`
         }, { quoted: message });
 
-		// Try Izumi primary by URL, then by query, then Okatsu fallback
-		let audioData;
+		// Coba Izumi (URL), lalu Izumi (query), lalu Okatsu (fallback)
+        let audioData;
 		try {
-			// 1) Primary: Izumi by youtube url
+			// 1) Utama: Izumi via URL YouTube
 			audioData = await getIzumiDownloadByUrl(video.url);
 		} catch (e1) {
 			try {
-				// 2) Secondary: Izumi search by query/title
+				// 2) Cadangan: Izumi via pencarian judul/query
 				const query = video.title || text;
 				audioData = await getIzumiDownloadByQuery(query);
 			} catch (e2) {
-				// 3) Fallback: Okatsu by youtube url
+				// 3) Fallback: Okatsu via URL YouTube
 				audioData = await getOkatsuDownloadByUrl(video.url);
 			}
 		}
@@ -105,7 +105,7 @@ async function songCommand(sock, chatId, message) {
 
     } catch (err) {
         console.error('Song command error:', err);
-        await sock.sendMessage(chatId, { text: '❌ Failed to download song.' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ *Gagal mengunduh lagu. Coba lagi nanti ya!*' }, { quoted: message });
     }
 }
 

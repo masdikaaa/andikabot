@@ -1,12 +1,122 @@
 {
   "users": [],
   "groups": [],
-  "antilink": {},
-  "antibadword": {},
-  "warnings": {},
-  "sudo": [],
-  "welcome": {},
-  "goodbye": {},
-  "chatbot": {},
-  "autoReaction": false
+  "antilink": {
+    "120363417888381859@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363423738280537@g.us": {
+      "enabled": true,
+      "action": "warn"
+    },
+    "120363045421939458@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363421094111625@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363422087154476@g.us": {
+      "enabled": true,
+      "action": "delete"
+    }
+  },
+  "antibadword": {
+    "120363417888381859@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363423738280537@g.us": {
+      "enabled": true,
+      "action": "warn"
+    },
+    "120363045421939458@g.us": {
+      "enabled": true,
+      "action": "warn"
+    }
+  },
+  "warnings": {
+    "120363423738280537@g.us": {},
+    "120363045421939458@g.us": {
+      "46029248409840": 1,
+      "151866268745770": 1,
+      "139298875691054": 1,
+      "186131014537323": 1,
+      "225348495089806": 2,
+      "210900342595654": 1,
+      "53352201195763": 1,
+      "112185183342712": 0,
+      "212321758621942": 1,
+      "186856931098687": 1
+    },
+    "120363422087154476@g.us": {
+      "142352916193333": 2
+    }
+  },
+  "sudo": [
+    "7117465465061@lid",
+    "93166430621949@lid",
+    "97573754912768@lid"
+  ],
+  "welcome": {
+    "120363422087154476@g.us": {
+      "enabled": true,
+      "message": "Selamat datang {user} di {group}! 🎉",
+      "channelId": "120363421594431163@newsletter"
+    },
+    "120363045421939458@g.us": {
+      "enabled": true,
+      "message": "⚙️ Selamat datang {user} di *{group}*! 🚀  \nDi sini kita belajar, berbagi, dan nge-deploy bareng.  \n📜 *Rule:* jangan lupa #izinmin dulu sebelum share link. 🔧  \n💡 *Motivasi:* “Hidup itu kayak pipeline DevOps - terus iterasi, perbaiki error, dan jangan pernah takut rollback.” ☁️",
+      "channelId": "120363421594431163@newsletter"
+    }
+  },
+  "goodbye": {
+    "120363422087154476@g.us": {
+      "enabled": true,
+      "message": "Sampai jumpa {user} 👋",
+      "channelId": "120363421594431163@newsletter"
+    },
+    "120363045421939458@g.us": {
+      "enabled": true,
+      "message": "🚀 {user}, pipeline-mu telah berakhir di sini, tapi deployment hidupmu baru dimulai! 🌱  \nSemoga setiap langkahmu selalu sukses tanpa error, dan log-mu penuh dengan “Status: OK ✅”  \nStay calm & automate everything. ⚙️",
+      "channelId": "120363421594431163@newsletter"
+    }
+  },
+  "chatbot": {
+    "120363421094111625@g.us": {
+      "enabled": true
+    },
+    "120363423738280537@g.us": {
+      "enabled": true
+    },
+    "120363422087154476@g.us": {
+      "enabled": true
+    },
+    "120363422635260342@g.us": {
+      "enabled": true
+    },
+    "120363045421939458@g.us": {
+      "enabled": true
+    },
+    "120363320058156625@g.us": {
+      "enabled": true
+    }
+  },
+  "autoReaction": true,
+  "antitag": {
+    "120363417888381859@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363423738280537@g.us": {
+      "enabled": true,
+      "action": "delete"
+    },
+    "120363045421939458@g.us": {
+      "enabled": true,
+      "action": "delete"
+    }
+  }
 }

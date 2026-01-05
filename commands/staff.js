@@ -1,34 +1,34 @@
 async function staffCommand(sock, chatId, msg) {
     try {
-        // Get group metadata
+        // Ambil metadata grup
         const groupMetadata = await sock.groupMetadata(chatId);
         
-        // Get group profile picture
+        // Foto profil grup
         let pp;
         try {
             pp = await sock.profilePictureUrl(chatId, 'image');
         } catch {
-            pp = 'https://i.imgur.com/2wzGhpF.jpeg'; // Default image
+            pp = 'https://i.imgur.com/2wzGhpF.jpeg'; // Gambar default
         }
 
-        // Get admins from participants
+        // Dapatkan admin dari peserta
         const participants = groupMetadata.participants;
         const groupAdmins = participants.filter(p => p.admin);
         const listAdmin = groupAdmins.map((v, i) => `${i + 1}. @${v.id.split('@')[0]}`).join('\n▢ ');
         
-        // Get group owner
+        // Pemilik grup
         const owner = groupMetadata.owner || groupAdmins.find(p => p.admin === 'superadmin')?.id || chatId.split('-')[0] + '@s.whatsapp.net';
 
-        // Create staff text
+        // Teks daftar admin (Bahasa Indonesia)
         const text = `
-≡ *GROUP ADMINS* _${groupMetadata.subject}_
+≡ *ADMIN GRUP* _${groupMetadata.subject}_
 
-┌─⊷ *ADMINS*
+┌─⊷ *DAFTAR ADMIN* 🛡️
 ▢ ${listAdmin}
 └───────────
 `.trim();
 
-        // Send the message with image and mentions
+        // Kirim pesan dengan gambar & mention
         await sock.sendMessage(chatId, {
             image: { url: pp },
             caption: text,
@@ -37,8 +37,8 @@ async function staffCommand(sock, chatId, msg) {
 
     } catch (error) {
         console.error('Error in staff command:', error);
-        await sock.sendMessage(chatId, { text: 'Failed to get admin list!' });
+        await sock.sendMessage(chatId, { text: '❌ Gagal mengambil daftar admin!' });
     }
 }
 
-module.exports = staffCommand; 
+module.exports = staffCommand;

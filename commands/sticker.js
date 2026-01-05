@@ -31,13 +31,13 @@ async function stickerCommand(sock, chatId, message) {
 
     if (!mediaMessage) {
         await sock.sendMessage(chatId, { 
-            text: 'Please reply to an image/video with .sticker, or send an image/video with .sticker as the caption.',
+            text: '❗ *Balas gambar/video dengan .sticker, atau kirim gambar/video dengan caption .sticker*',
             contextInfo: {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }
@@ -53,13 +53,13 @@ async function stickerCommand(sock, chatId, message) {
 
         if (!mediaBuffer) {
             await sock.sendMessage(chatId, { 
-                text: 'Failed to download media. Please try again.',
+                text: '❌ Gagal mengunduh media. Coba lagi ya.',
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
+                        newsletterJid: '120363421594431163@newsletter',
+                        newsletterName: 'Andika Bot',
                         serverMessageId: -1
                     }
                 }
@@ -211,13 +211,13 @@ async function stickerCommand(sock, chatId, message) {
     } catch (error) {
         console.error('Error in sticker command:', error);
         await sock.sendMessage(chatId, { 
-            text: 'Failed to create sticker! Try again later.',
+            text: '❌ *Gagal membuat stiker!* Coba lagi nanti ya.',
             contextInfo: {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
+                    newsletterJid: '120363421594431163@newsletter',
+                    newsletterName: 'Andika Bot',
                     serverMessageId: -1
                 }
             }

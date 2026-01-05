@@ -5,6 +5,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const isAdmin = require('../lib/isAdmin');
+const { isSudo } = require('../lib/index');
 
 // Path to store the configuration
 const configPath = path.join(__dirname, '..', 'data', 'autoread.json');
@@ -20,89 +22,75 @@ function initConfig() {
 // Toggle autoread feature
 async function autoreadCommand(sock, chatId, message) {
     try {
-        // Check if sender is the owner (bot itself)
-        if (!message.key.fromMe) {
+        const senderId = message.key.participant || message.key.remoteJid;
+
+        // --- Perizinan: owner bot / sudo / admin grup / owner grup ---
+        let allow = false;
+        const isOwnerBot = !!message.key.fromMe;
+        let isSudoUser = false;
+        let senderIsAdmin = false;
+        let senderIsGroupOwner = false;
+
+        try { isSudoUser = await isSudo(senderId); } catch {}
+
+        if (chatId.endsWith('@g.us')) {
+            try {
+                const meta = await sock.groupMetadata(chatId);
+                const adm = await isAdmin(sock, chatId, senderId, message);
+                senderIsAdmin = !!adm.isSenderAdmin;
+                senderIsGroupOwner = !!meta.owner && meta.owner === senderId;
+            } catch {}
+        }
+
+        allow = isOwnerBot || isSudoUser || senderIsAdmin || senderIsGroupOwner;
+
+        if (!allow) {
             await sock.sendMessage(chatId, {
-                text: '❌ This command is only available for the owner!',
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: '⛔ *Hanya owner/sudo/admin/owner grup yang bisa memakai perintah ini!*'
+            }, { quoted: message });
             return;
         }
 
         // Get command arguments
-        const args = message.message?.conversation?.trim().split(' ').slice(1) || 
-                    message.message?.extendedTextMessage?.text?.trim().split(' ').slice(1) || 
-                    [];
-        
+        const args =
+            message.message?.conversation?.trim().split(' ').slice(1) ||
+            message.message?.extendedTextMessage?.text?.trim().split(' ').slice(1) ||
+            [];
+
         // Initialize or read config
         const config = initConfig();
-        
+
         // Toggle based on argument or toggle current state if no argument
         if (args.length > 0) {
-            const action = args[0].toLowerCase();
+            const action = (args[0] || '').toLowerCase();
             if (action === 'on' || action === 'enable') {
                 config.enabled = true;
             } else if (action === 'off' || action === 'disable') {
                 config.enabled = false;
             } else {
                 await sock.sendMessage(chatId, {
-                    text: '❌ Invalid option! Use: .autoread on/off',
-                    contextInfo: {
-                        forwardingScore: 1,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363161513685998@newsletter',
-                            newsletterName: 'KnightBot MD',
-                            serverMessageId: -1
-                        }
-                    }
-                });
+                    text: '❌ Opsi tidak valid! Gunakan: *.autoread on* / *.autoread off*'
+                }, { quoted: message });
                 return;
             }
         } else {
             // Toggle current state
             config.enabled = !config.enabled;
         }
-        
+
         // Save updated configuration
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        
+
         // Send confirmation message
         await sock.sendMessage(chatId, {
-            text: `✅ Auto-read has been ${config.enabled ? 'enabled' : 'disabled'}!`,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
-                    serverMessageId: -1
-                }
-            }
-        });
-        
+            text: `✅ Auto-read ${config.enabled ? 'diaktifkan' : 'dimatikan'}!`
+        }, { quoted: message });
+
     } catch (error) {
         console.error('Error in autoread command:', error);
         await sock.sendMessage(chatId, {
-            text: '❌ Error processing command!',
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
-                    serverMessageId: -1
-                }
-            }
-        });
+            text: '❌ Error memproses perintah!'
+        }, { quoted: message });
     }
 }
 
@@ -120,13 +108,13 @@ function isAutoreadEnabled() {
 // Function to check if bot is mentioned in a message
 function isBotMentionedInMessage(message, botNumber) {
     if (!message.message) return false;
-    
+
     // Check for mentions in contextInfo (works for all message types)
     const messageTypes = [
         'extendedTextMessage', 'imageMessage', 'videoMessage', 'stickerMessage',
         'documentMessage', 'audioMessage', 'contactMessage', 'locationMessage'
     ];
-    
+
     // Check for explicit mentions in mentionedJid array
     for (const type of messageTypes) {
         if (message.message[type]?.contextInfo?.mentionedJid) {
@@ -136,29 +124,29 @@ function isBotMentionedInMessage(message, botNumber) {
             }
         }
     }
-    
+
     // Check for text mentions in various message types
-    const textContent = 
-        message.message.conversation || 
+    const textContent =
+        message.message.conversation ||
         message.message.extendedTextMessage?.text ||
         message.message.imageMessage?.caption ||
         message.message.videoMessage?.caption || '';
-    
+
     if (textContent) {
         // Check for @mention format
         const botUsername = botNumber.split('@')[0];
         if (textContent.includes(`@${botUsername}`)) {
             return true;
         }
-        
-        // Check for bot name mentions (optional, can be customized)
+
+        // Optional name keywords
         const botNames = [global.botname?.toLowerCase(), 'bot', 'knight', 'knight bot'];
         const words = textContent.toLowerCase().split(/\s+/);
         if (botNames.some(name => words.includes(name))) {
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -167,21 +155,19 @@ async function handleAutoread(sock, message) {
     if (isAutoreadEnabled()) {
         // Get bot's ID
         const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        
+
         // Check if bot is mentioned
         const isBotMentioned = isBotMentionedInMessage(message, botNumber);
-        
+
         // If bot is mentioned, read the message internally but don't mark as read in UI
         if (isBotMentioned) {
-            
-            // We don't call sock.readMessages() here, so the message stays unread in the UI
-            return false; // Indicates message was not marked as read
+            // Do not call readMessages -> stays unread in UI
+            return false; // not marked as read
         } else {
             // For regular messages, mark as read normally
             const key = { remoteJid: message.key.remoteJid, id: message.key.id, participant: message.key.participant };
             await sock.readMessages([key]);
-            //console.log('✅ Marked message as read from ' + (message.key.participant || message.key.remoteJid).split('@')[0]);
-            return true; // Indicates message was marked as read
+            return true; // marked as read
         }
     }
     return false; // Autoread is disabled

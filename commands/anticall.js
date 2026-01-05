@@ -25,20 +25,38 @@ async function anticallCommand(sock, chatId, message, args) {
     const sub = (args || '').trim().toLowerCase();
 
     if (!sub || (sub !== 'on' && sub !== 'off' && sub !== 'status')) {
-        await sock.sendMessage(chatId, { text: '*ANTICALL*\n\n.anticall on  - Enable auto-block on incoming calls\n.anticall off - Disable anticall\n.anticall status - Show current status' }, { quoted: message });
+        await sock.sendMessage(
+            chatId,
+            {
+                text:
+`🛡️ *ANTICALL*
+
+📞 *.anticall on*  — Aktifkan blokir otomatis saat ada panggilan masuk
+🚫 *.anticall off* — Nonaktifkan Anticall
+ℹ️ *.anticall status* — Lihat status saat ini`
+            },
+            { quoted: message }
+        );
         return;
     }
 
     if (sub === 'status') {
-        await sock.sendMessage(chatId, { text: `Anticall is currently *${state.enabled ? 'ON' : 'OFF'}*.` }, { quoted: message });
+        await sock.sendMessage(
+            chatId,
+            { text: `📊 Status Anticall saat ini: *${state.enabled ? '🟢 AKTIF' : '🔴 NONAKTIF'}*.` },
+            { quoted: message }
+        );
         return;
     }
 
     const enable = sub === 'on';
     writeState(enable);
-    await sock.sendMessage(chatId, { text: `Anticall is now *${enable ? 'ENABLED' : 'DISABLED'}*.` }, { quoted: message });
+    const icon = enable ? '✅' : '⛔';
+    await sock.sendMessage(
+        chatId,
+        { text: `${icon} Anticall sekarang *${enable ? 'AKTIF' : 'NONAKTIF'}*.` },
+        { quoted: message }
+    );
 }
 
 module.exports = { anticallCommand, readState };
-
-

@@ -2,7 +2,6 @@ const fetch = require('node-fetch');
 
 async function rosedayCommand(sock, chatId, message) {
     try {
-        
         const res = await fetch(`https://api.princetechn.com/api/fun/roseday?apikey=prince`);
         
         if (!res.ok) {
@@ -12,11 +11,11 @@ async function rosedayCommand(sock, chatId, message) {
         const json = await res.json();
         const rosedayMessage = json.result;
 
-        // Send the roseday message
+        // Kirim pesan roseday
         await sock.sendMessage(chatId, { text: rosedayMessage }, { quoted: message });
     } catch (error) {
         console.error('Error in roseday command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Failed to get roseday quote. Please try again later!' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ *Gagal mengambil kutipan Rose Day. Coba lagi nanti ya!*' }, { quoted: message });
     }
 }
 

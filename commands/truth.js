@@ -12,11 +12,11 @@ async function truthCommand(sock, chatId, message) {
         const json = await res.json();
         const truthMessage = json.result;
 
-        // Send the truth message
+        // Kirim pesan truth
         await sock.sendMessage(chatId, { text: truthMessage }, { quoted: message });
     } catch (error) {
         console.error('Error in truth command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Failed to get truth. Please try again later!' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ Gagal mengambil pertanyaan truth. Coba lagi nanti!' }, { quoted: message });
     }
 }
 

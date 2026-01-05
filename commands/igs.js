@@ -189,7 +189,7 @@ async function igsCommand(sock, chatId, message, crop = false) {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
         const urlMatch = text.match(/https?:\/\/\S+/);
         if (!urlMatch) {
-            await sock.sendMessage(chatId, { text: `Send an Instagram post/reel link.\nUsage:\n.igs <url>\n.igsc <url>` }, { quoted: message });
+            await sock.sendMessage(chatId, { text: `📎 *Kirim tautan postingan/reel Instagram.*\n📌 *Cara pakai:*\n.igs <url>\n.igsc <url>` }, { quoted: message });
             return;
         }
 
@@ -197,7 +197,7 @@ async function igsCommand(sock, chatId, message, crop = false) {
 
         const downloadData = await igdl(urlMatch[0]).catch(() => null);
         if (!downloadData || !downloadData.data) {
-            await sock.sendMessage(chatId, { text: '❌ Failed to fetch media from Instagram link.' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '❌ *Gagal mengambil media dari tautan Instagram.*' }, { quoted: message });
             return;
         }
         // Raw items
@@ -212,7 +212,7 @@ async function igsCommand(sock, chatId, message, crop = false) {
             }
         }
         if (items.length === 0) {
-            await sock.sendMessage(chatId, { text: '❌ No media found at the provided link.' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '❌ *Tidak ada media pada tautan tersebut.*' }, { quoted: message });
             return;
         }
 
@@ -265,7 +265,7 @@ async function igsCommand(sock, chatId, message, crop = false) {
 
     } catch (err) {
         console.error('Error in igs command:', err);
-        await sock.sendMessage(chatId, { text: 'Failed to create sticker from Instagram link.' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ *Gagal membuat stiker dari tautan Instagram.*' }, { quoted: message });
     }
 }
 
@@ -316,5 +316,3 @@ async function forceMiniSticker(inputBuffer, isVideo, cropSquare) {
 }
 
 module.exports = { igsCommand };
-
-

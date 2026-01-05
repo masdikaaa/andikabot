@@ -4,53 +4,61 @@ const { channelInfo } = require('../lib/messageConfig');
 async function wastedCommand(sock, chatId, message) {
     let userToWaste;
     
-    // Check for mentioned users
+    // Cek mention
     if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
         userToWaste = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
     }
-    // Check for replied message
+    // Cek balasan pesan
     else if (message.message?.extendedTextMessage?.contextInfo?.participant) {
         userToWaste = message.message.extendedTextMessage.contextInfo.participant;
     }
     
     if (!userToWaste) {
-        await sock.sendMessage(chatId, { 
-            text: 'Please mention someone or reply to their message to waste them!', 
-            ...channelInfo 
-        }, { quoted: message });
+        await sock.sendMessage(
+            chatId,
+            { 
+                text: '⚠️ Sebut (mention) seseorang atau balas pesan mereka untuk memberi efek wasted!',
+                ...channelInfo 
+            },
+            { quoted: message }
+        );
         return;
     }
 
     try {
-        // Get user's profile picture
+        // Ambil foto profil pengguna
         let profilePic;
         try {
             profilePic = await sock.profilePictureUrl(userToWaste, 'image');
         } catch {
-            profilePic = 'https://i.imgur.com/2wzGhpF.jpeg'; // Default image if no profile pic
+            profilePic = 'https://i.imgur.com/2wzGhpF.jpeg'; // Gambar default jika tidak ada foto profil
         }
 
-        // Get the wasted effect image
+        // Dapatkan gambar efek "wasted"
         const wastedResponse = await axios.get(
             `https://some-random-api.com/canvas/overlay/wasted?avatar=${encodeURIComponent(profilePic)}`,
             { responseType: 'arraybuffer' }
         );
 
-        // Send the wasted image
+        // Kirim gambar "wasted"
         await sock.sendMessage(chatId, {
             image: Buffer.from(wastedResponse.data),
-            caption: `⚰️ *Wasted* : ${userToWaste.split('@')[0]} 💀\n\nRest in pieces!`,
+            caption: `⚰️ *Wasted* : @${userToWaste.split('@')[0]} 💀\n\nIstirahatlah dalam kepingan!`,
             mentions: [userToWaste],
             ...channelInfo
         });
 
     } catch (error) {
         console.error('Error in wasted command:', error);
-        await sock.sendMessage(chatId, { 
-            text: 'Failed to create wasted image! Try again later.',
-            ...channelInfo 
-        }, { quoted: message });
+        await sock.sendMessage(
+            chatId,
+            { 
+                text: '❌ Gagal membuat gambar wasted. Coba lagi nanti.',
+                ...channelInfo 
+            },
+            { quoted: message }
+        );
     }
 }
 
-module.exports = wastedCommand; 
+module.exports = wastedCommand;

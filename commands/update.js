@@ -175,7 +175,7 @@ async function updateViaZip(sock, chatId, message, zipOverride) {
 
 async function restartProcess(sock, chatId, message) {
     try {
-        await sock.sendMessage(chatId, { text: '✅ Update complete! Restarting…' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '✅ Pembaruan selesai! Bot akan dimulai ulang…' }, { quoted: message });
     } catch {}
     try {
         // Preferred: PM2
@@ -191,18 +191,18 @@ async function restartProcess(sock, chatId, message) {
 
 async function updateCommand(sock, chatId, message, senderIsSudo, zipOverride) {
     if (!message.key.fromMe && !senderIsSudo) {
-        await sock.sendMessage(chatId, { text: 'Only bot owner or sudo can use .update' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ Hanya owner bot atau sudo yang bisa menggunakan *.update*' }, { quoted: message });
         return;
     }
     try {
         // Minimal UX
-        await sock.sendMessage(chatId, { text: '🔄 Updating the bot, please wait…' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '🔄 Sedang memperbarui bot, mohon tunggu…' }, { quoted: message });
         if (await hasGitRepo()) {
             // silent
             const { oldRev, newRev, alreadyUpToDate, commits, files } = await updateViaGit();
-            // Short message only: version info
+            // Short message only: version info (tidak dikirim ke chat)
             const summary = alreadyUpToDate ? `✅ Already up to date: ${newRev}` : `✅ Updated to ${newRev}`;
-            console.log('[update] summary generated');
+            console.log('[update] summary generated', summary);
             // silent
             await run('npm install --no-audit --no-fund');
         } else {
@@ -211,17 +211,15 @@ async function updateCommand(sock, chatId, message, senderIsSudo, zipOverride) {
         }
         try {
             const v = require('../settings').version || '';
-            await sock.sendMessage(chatId, { text: `✅ Update done. Restarting…` }, { quoted: message });
+            await sock.sendMessage(chatId, { text: `✅ Pembaruan selesai. Bot akan restart…` }, { quoted: message });
         } catch {
-            await sock.sendMessage(chatId, { text: '✅ Restared Successfully\n Type .ping to check latest version.' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '✅ Berhasil diperbarui.\nKetik *.ping* untuk cek versi terbaru.' }, { quoted: message });
         }
         await restartProcess(sock, chatId, message);
     } catch (err) {
         console.error('Update failed:', err);
-        await sock.sendMessage(chatId, { text: `❌ Update failed:\n${String(err.message || err)}` }, { quoted: message });
+        await sock.sendMessage(chatId, { text: `❌ Gagal memperbarui:\n${String(err.message || err)}` }, { quoted: message });
     }
 }
 
 module.exports = updateCommand;
-
-

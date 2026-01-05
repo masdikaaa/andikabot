@@ -1,5 +1,5 @@
 {
-  "name": "knightbot",
+  "name": "andikabot",
   "version": "1.0.0",
   "description": "WhatsApp Bot",
   "main": "index.js",
@@ -13,7 +13,7 @@
     "install:panel": "npm install --legacy-peer-deps",
     "install:force": "npm install --force",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docker:build": "docker build -t docker run -e SESSION_ID=$SESSION_ID knightbot"
+    "docker:build": "docker build -t docker run -e SESSION_ID=$SESSION_ID andikabot"
   },
   "keywords": [
     "whatsapp-bot"
@@ -25,9 +25,9 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@hapi/boom": "^10.0.1",
     "@types/node": "^18.0.6",
-    "@whiskeysockets/baileys": "^6.7.18",
+    "@whiskeysockets/baileys": "^7.0.0-rc.6",
     "awesome-phonenumber": "^5.9.0",
-    "axios": "^1.8.4",
+    "axios": "^1.12.2",
     "chalk": "^4.1.2",
     "cheerio": "^1.0.0-rc.12",
     "cookie": "^0.5.0",
@@ -39,7 +39,8 @@
     "fs-extra": "^11.2.0",
     "gtts": "^0.2.1",
     "human-readable": "^0.2.1",
-    "jimp": "^1.6.0",
+    "inquirer": "^12.10.0",
+    "jimp": "^0.22.10",
     "jsdom": "^22.1.0",
     "libphonenumber-js": "^1.11.18",
     "libsignal": "^2.0.1",
@@ -54,11 +55,14 @@
     "performance-now": "^2.1.0",
     "phin": "^3.7.1",
     "pino": "^8.21.0",
+    "playwright": "^1.56.1",
+    "puppeteer": "^24.22.3",
     "qrcode": "^1.5.4",
     "qrcode-reader": "^1.0.4",
     "qrcode-terminal": "^0.12.0",
+    "redis": "^5.9.0",
     "request": "^2.88.2",
-    "ruhend-scraper": "^8.3.0",
+    "ruhend-scraper": "^9.0.8",
     "safe-stable-stringify": "^2.5.0",
     "set-cookie": "^0.0.4",
     "sharp": "^0.32.6",
@@ -71,9 +75,6 @@
     "youtubedl-core": "^4.11.7",
     "yt-search": "^2.12.1",
     "ytdl-core": "^4.11.5"
-  },
-  "overrides": {
-    "jimp": "^1.6.0"
   },
   "engines": {
     "node": ">=18.0.0"

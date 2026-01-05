@@ -1,34 +1,34 @@
 const compliments = [
-    "You're amazing just the way you are!",
-    "You have a great sense of humor!",
-    "You're incredibly thoughtful and kind.",
-    "You are more powerful than you know.",
-    "You light up the room!",
-    "You're a true friend.",
-    "You inspire me!",
-    "Your creativity knows no bounds!",
-    "You have a heart of gold.",
-    "You make a difference in the world.",
-    "Your positivity is contagious!",
-    "You have an incredible work ethic.",
-    "You bring out the best in people.",
-    "Your smile brightens everyone's day.",
-    "You're so talented in everything you do.",
-    "Your kindness makes the world a better place.",
-    "You have a unique and wonderful perspective.",
-    "Your enthusiasm is truly inspiring!",
-    "You are capable of achieving great things.",
-    "You always know how to make someone feel special.",
-    "Your confidence is admirable.",
-    "You have a beautiful soul.",
-    "Your generosity knows no limits.",
-    "You have a great eye for detail.",
-    "Your passion is truly motivating!",
-    "You are an amazing listener.",
-    "You're stronger than you think!",
-    "Your laughter is infectious.",
-    "You have a natural gift for making others feel valued.",
-    "You make the world a better place just by being in it."
+    "Kamu itu luar biasa apa adanya! ✨",
+    "Sense of humor-mu keren banget! 😂",
+    "Kamu sangat perhatian dan baik. 😊",
+    "Kamu lebih hebat dari yang kamu kira. 💪",
+    "Kehadiranmu bikin suasana jadi cerah! 🌟",
+    "Kamu teman sejati. 🤝",
+    "Kamu menginspirasi! 🔥",
+    "Kreativitasmu gak ada batasnya! 🎨",
+    "Hatimu emas. 🫶",
+    "Kamu membawa dampak baik untuk sekitar. 🌍",
+    "Positifmu menular! 😄",
+    "Etos kerjamu patut dicontoh. 🧠",
+    "Kamu bikin orang lain jadi versi terbaiknya. 🌱",
+    "Senyumanmu bikin hari orang lain cerah. 😊",
+    "Kamu berbakat di banyak hal. ⭐",
+    "Kebaikanmu bikin dunia lebih baik. ❤️",
+    "Sudut pandangmu unik dan berharga. 🔭",
+    "Antusiasmemu sangat menginspirasi! 🚀",
+    "Kamu mampu meraih hal-hal besar. 🏆",
+    "Kamu selalu bisa bikin orang merasa spesial. 🎁",
+    "Percaya dirimu mengagumkan. 😎",
+    "Jiwamu indah. ✨",
+    "Kedermawananmu tak berbatas. 🎁",
+    "Matamu jeli terhadap detail. 🔎",
+    "Passion-mu memotivasi! ⚡",
+    "Kamu pendengar yang hebat. 👂",
+    "Kamu lebih kuat dari yang kamu bayangkan! 🛡️",
+    "Tawamu menular. 😂",
+    "Kamu punya bakat membuat orang merasa dihargai. 💬",
+    "Dunia jadi lebih baik karena ada kamu. 🌈"
 ];
 
 async function complimentCommand(sock, chatId, message) {
@@ -40,38 +40,39 @@ async function complimentCommand(sock, chatId, message) {
 
         let userToCompliment;
         
-        // Check for mentioned users
+        // Cek mention
         if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
             userToCompliment = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
         }
-        // Check for replied message
+        // Cek reply
         else if (message.message?.extendedTextMessage?.contextInfo?.participant) {
             userToCompliment = message.message.extendedTextMessage.contextInfo.participant;
         }
         
         if (!userToCompliment) {
             await sock.sendMessage(chatId, { 
-                text: 'Please mention someone or reply to their message to compliment them!'
+                text: '⚠️ *Harap mention seseorang atau balas pesannya untuk memberi pujian!*'
             });
             return;
         }
 
         const compliment = compliments[Math.floor(Math.random() * compliments.length)];
 
-        // Add delay to avoid rate limiting
+        // Tambahkan jeda kecil agar aman dari rate limit
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         await sock.sendMessage(chatId, { 
-            text: `Hey @${userToCompliment.split('@')[0]}, ${compliment}`,
+            text: `💬 @${userToCompliment.split('@')[0]}, ${compliment}`,
             mentions: [userToCompliment]
         });
     } catch (error) {
         console.error('Error in compliment command:', error);
         if (error.data === 429) {
+            // Rate limited
             await new Promise(resolve => setTimeout(resolve, 2000));
             try {
                 await sock.sendMessage(chatId, { 
-                    text: 'Please try again in a few seconds.'
+                    text: '⏳ *Terlalu cepat.* Coba lagi beberapa detik lagi ya.'
                 });
             } catch (retryError) {
                 console.error('Error sending retry message:', retryError);
@@ -79,7 +80,7 @@ async function complimentCommand(sock, chatId, message) {
         } else {
             try {
                 await sock.sendMessage(chatId, { 
-                    text: 'An error occurred while sending the compliment.'
+                    text: '❌ *Terjadi kesalahan saat mengirim pujian.*'
                 });
             } catch (sendError) {
                 console.error('Error sending error message:', sendError);
